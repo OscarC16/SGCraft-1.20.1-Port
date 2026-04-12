@@ -1,0 +1,25 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:plains",
+    "minecraft:desert",
+    "minecraft:forest",
+    "minecraft:taiga",
+    "minecraft:swamp",
+    "minecraft:river",
+    "minecraft:ocean",
+    "minecraft:beach",
+    "minecraft:badlands",
+    "minecraft:snowy_plains",
+    "minecraft:ice_spikes",
+    "minecraft:meadow",
+    "minecraft:grove",
+    "minecraft:snowy_slopes",
+    "minecraft:jagged_peaks",
+    "minecraft:frozen_peaks",
+    "minecraft:stony_peaks",
+    "minecraft:lush_caves",
+    "minecraft:dripstone_caves",
+    "minecraft:deep_dark"
+  ]
+}

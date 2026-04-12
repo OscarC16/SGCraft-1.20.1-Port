@@ -1,0 +1,13 @@
+# Minecraft Forge .gitignore
+.gradle
+build/
+run/
+out/
+bin/
+*.log
+*.swp
+*.bak
+.idea/
+*.iml
+.vscode/
+/src/generated/
