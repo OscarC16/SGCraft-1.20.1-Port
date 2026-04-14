@@ -1,7 +1,9 @@
 package gcewing.sgcraft.registry;
 
 import gcewing.sgcraft.SGCraft;
-import gcewing.sgcraft.block.SGHorizontalBlock;
+import gcewing.sgcraft.block.DHDBlock;
+import gcewing.sgcraft.block.SGBaseBlock;
+import gcewing.sgcraft.block.SGRingBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -37,27 +39,29 @@ public class ModBlocks {
                     .requiresCorrectToolForDrops()
             ));
 
-    // Bloques Estructurales
+    // Bloques Estructurales del Stargate
     public static final RegistryObject<Block> STARGATE_RING = BLOCKS.register("stargate_ring",
-            () -> new Block(BlockBehaviour.Properties.of()
+            () -> new SGRingBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.STONE)
                     .strength(3.0F, 3.0F)
                     .sound(SoundType.STONE)
                     .noOcclusion()
-                    .requiresCorrectToolForDrops()
+                    .requiresCorrectToolForDrops(),
+                    false // not chevron
             ));
 
     public static final RegistryObject<Block> STARGATE_CHEVRON = BLOCKS.register("stargate_chevron",
-            () -> new Block(BlockBehaviour.Properties.of()
+            () -> new SGRingBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.STONE)
                     .strength(3.0F, 3.0F)
                     .sound(SoundType.STONE)
                     .noOcclusion()
-                    .requiresCorrectToolForDrops()
+                    .requiresCorrectToolForDrops(),
+                    true // is chevron
             ));
 
     public static final RegistryObject<Block> STARGATE_BASE = BLOCKS.register("stargate_base",
-            () -> new SGHorizontalBlock(BlockBehaviour.Properties.of()
+            () -> new SGBaseBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.STONE)
                     .strength(3.0F, 3.0F)
                     .sound(SoundType.STONE)
@@ -66,7 +70,7 @@ public class ModBlocks {
             ));
 
     public static final RegistryObject<Block> STARGATE_CONTROLLER = BLOCKS.register("stargate_controller",
-            () -> new Block(BlockBehaviour.Properties.of()
+            () -> new DHDBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.STONE)
                     .strength(3.0F, 3.0F)
                     .sound(SoundType.STONE)

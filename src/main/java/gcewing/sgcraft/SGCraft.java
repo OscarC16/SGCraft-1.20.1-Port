@@ -9,6 +9,9 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import gcewing.sgcraft.registry.ModBlocks;
 import gcewing.sgcraft.registry.ModItems;
 import gcewing.sgcraft.registry.ModCreativeTabs;
+import gcewing.sgcraft.registry.ModBlockEntities;
+import gcewing.sgcraft.registry.ModMenuTypes;
+import gcewing.sgcraft.network.ModNetwork;
 import org.slf4j.Logger;
 
 @Mod(SGCraft.MODID)
@@ -22,6 +25,8 @@ public class SGCraft {
         ModBlocks.BLOCKS.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
         ModCreativeTabs.CREATIVE_MODE_TABS.register(modEventBus);
+        ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
+        ModMenuTypes.MENUS.register(modEventBus);
 
         modEventBus.addListener(this::setup);
         MinecraftForge.EVENT_BUS.register(this);
@@ -29,5 +34,6 @@ public class SGCraft {
 
     private void setup(final FMLCommonSetupEvent event) {
         LOGGER.info("SGCraft starting...");
+        event.enqueueWork(ModNetwork::register);
     }
 }

@@ -1,6 +1,7 @@
 package gcewing.sgcraft.registry;
 
 import gcewing.sgcraft.SGCraft;
+import gcewing.sgcraft.item.DHDBlockItem;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.registries.DeferredRegister;
@@ -55,5 +56,5 @@ public class ModItems {
             () -> new BlockItem(ModBlocks.STARGATE_BASE.get(), new Item.Properties()));
 
     public static final RegistryObject<Item> STARGATE_CONTROLLER_ITEM = ITEMS.register("stargate_controller",
-            () -> new BlockItem(ModBlocks.STARGATE_CONTROLLER.get(), new Item.Properties()));
+            () -> new DHDBlockItem(ModBlocks.STARGATE_CONTROLLER.get(), new Item.Properties()));
 }

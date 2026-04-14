@@ -13,5 +13,8 @@
   "item.sgcraft.sg_controller_crystal": "Stargate Controller Crystal",
   "item.sgcraft.sg_chevron_upgrade": "Stargate Chevron Upgrade",
   "item.sgcraft.sg_iris_upgrade": "Stargate Iris Upgrade",
-  "item.sgcraft.sg_iris_blade": "Stargate Iris Blade"
+  "item.sgcraft.sg_iris_blade": "Stargate Iris Blade",
+  "gui.sgcraft.dhd.title": "DHD Dialing",
+  "gui.sgcraft.fuel.title": "Stargate Controller",
+  "gui.sgcraft.fuel.label": "Fuel"
 }
