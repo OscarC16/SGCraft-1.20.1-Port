@@ -138,10 +138,12 @@ public class SGBaseBlock extends BaseEntityBlock {
     @Override
     public @NotNull InteractionResult use(@NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull InteractionHand hand, @NotNull BlockHitResult hit) {
         if (!level.isClientSide) {
-            NetworkHooks.openScreen((ServerPlayer) player, new SimpleMenuProvider(
-                (id, inv, p) -> new SGBaseMenu(id, inv, level.getBlockEntity(pos), ContainerLevelAccess.create(level, pos)),
-                Component.literal("Stargate Address")
-            ), pos);
+            if (state.getValue(MERGED)) {
+                NetworkHooks.openScreen((ServerPlayer) player, new SimpleMenuProvider(
+                    (id, inv, p) -> new SGBaseMenu(id, inv, level.getBlockEntity(pos), ContainerLevelAccess.create(level, pos)),
+                    Component.literal("Stargate Address")
+                ), pos);
+            }
         }
         return InteractionResult.SUCCESS;
     }

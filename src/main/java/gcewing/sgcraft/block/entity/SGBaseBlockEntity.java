@@ -89,11 +89,9 @@ public class SGBaseBlockEntity extends BlockEntity {
         if (state == SGState.Idle) {
             if (!address.isEmpty()) {
                 // Future: implementation of dialing sequence
-                System.out.println("Stargate at " + worldPosition + " starting dial to " + address);
             }
         } else {
             // Future: implementation of disconnection
-            System.out.println("Stargate at " + worldPosition + " disconnecting");
         }
     }
 

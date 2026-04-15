@@ -111,7 +111,7 @@ public class SGAddressing {
     }
 
     // --- Validation ---
-    public static boolean isValidSymbolChar(String c) {
-        return Character.isLetterOrDigit(c.charAt(0)) && SYMBOL_CHARS.indexOf(c.toUpperCase()) >= 0;
+    public static boolean isValidSymbolChar(String s) {
+        return s != null && !s.isEmpty() && isValidSymbolChar(s.charAt(0));
     }
 }

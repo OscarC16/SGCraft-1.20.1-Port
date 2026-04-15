@@ -83,6 +83,10 @@ public class DHDItemRenderer extends BlockEntityWithoutLevelRenderer {
     }
 
     private void renderFacesForTexture(PoseStack poseStack, MultiBufferSource buffer, int combinedLight, int texIdx) {
+        if (texIdx >= model.groupedFaces.length) return;
+        SmegModel.Face[] currentFaces = model.groupedFaces[texIdx];
+        if (currentFaces == null || currentFaces.length == 0) return;
+
         ResourceLocation texFile = TEXTURE_FILES[texIdx];
         VertexConsumer vc = buffer.getBuffer(RenderType.entityCutoutNoCull(texFile));
 
@@ -106,25 +110,16 @@ public class DHDItemRenderer extends BlockEntityWithoutLevelRenderer {
             tileScale = 0.5f;
         }
 
-        for (SmegModel.Face face : model.faces) {
-            if (face.texture != texIdx) continue;
-
-            // Shade calculation (same as block renderer)
-            double[] firstVert = face.vertices[face.triangles[0][0]];
-            float fnx = (float) firstVert[3];
-            float fny = (float) firstVert[4];
-            float fnz = (float) firstVert[5];
-            float shade = (float)(0.6 * fnx * fnx + 0.8 * fnz * fnz + (fny > 0 ? 1.0 : 0.5) * fny * fny);
-            shade = Math.max(shade, 0.4f);
-            int r = (int)(255 * shade);
-            int g = (int)(255 * shade);
-            int b = (int)(255 * shade);
+        for (SmegModel.Face face : currentFaces) {
+            int r = face.r;
+            int g = face.g;
+            int b = face.b;
 
             for (int[] tri : face.triangles) {
                 // Emit degenerate quad: v0, v1, v2, v2
-                for (int i = 0; i < 3; i++) {
-                    emitVertex(vc, pose, normalMat, face.vertices[tri[i]], combinedLight, r, g, b, tileUOffset, tileVOffset, tileScale);
-                }
+                emitVertex(vc, pose, normalMat, face.vertices[tri[0]], combinedLight, r, g, b, tileUOffset, tileVOffset, tileScale);
+                emitVertex(vc, pose, normalMat, face.vertices[tri[1]], combinedLight, r, g, b, tileUOffset, tileVOffset, tileScale);
+                emitVertex(vc, pose, normalMat, face.vertices[tri[2]], combinedLight, r, g, b, tileUOffset, tileVOffset, tileScale);
                 emitVertex(vc, pose, normalMat, face.vertices[tri[2]], combinedLight, r, g, b, tileUOffset, tileVOffset, tileScale);
             }
         }
