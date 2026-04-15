@@ -138,9 +138,28 @@ public class SGBaseBlock extends BaseEntityBlock {
     @Override
     public @NotNull InteractionResult use(@NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull InteractionHand hand, @NotNull BlockHitResult hit) {
         if (!level.isClientSide) {
-            if (state.getValue(MERGED)) {
+            net.minecraft.world.item.ItemStack stack = player.getItemInHand(hand);
+            BlockEntity be = level.getBlockEntity(pos);
+            
+            if (be instanceof SGBaseBlockEntity baseBE && baseBE.isMerged) {
+                // Handle Chevron Upgrade
+                if (stack.is(gcewing.sgcraft.registry.ModItems.SG_CHEVRON_UPGRADE.get().asItem())) {
+                    if (baseBE.inventory.getStackInSlot(SGBaseBlockEntity.SLOT_CHEVRON_UPGRADE).isEmpty()) {
+                        baseBE.inventory.setStackInSlot(SGBaseBlockEntity.SLOT_CHEVRON_UPGRADE, stack.split(1));
+                        baseBE.hasChevronUpgrade = true; // Sync boolean for convenience
+                        level.playSound(null, pos, net.minecraft.sounds.SoundEvents.NETHERITE_BLOCK_PLACE, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+                        level.sendBlockUpdated(pos, state, state, 3);
+                        player.displayClientMessage(Component.literal("Chevron Upgrade installed! Stargate now supports 9 symbols."), true);
+                        return InteractionResult.SUCCESS;
+                    } else {
+                        player.displayClientMessage(Component.literal("Stargate already has a Chevron Upgrade."), true);
+                        return InteractionResult.CONSUME;
+                    }
+                }
+                
+                // Open GUI if not holding an upgrade
                 NetworkHooks.openScreen((ServerPlayer) player, new SimpleMenuProvider(
-                    (id, inv, p) -> new SGBaseMenu(id, inv, level.getBlockEntity(pos), ContainerLevelAccess.create(level, pos)),
+                    (id, inv, p) -> new SGBaseMenu(id, inv, baseBE, ContainerLevelAccess.create(level, pos)),
                     Component.literal("Stargate Address")
                 ), pos);
             }

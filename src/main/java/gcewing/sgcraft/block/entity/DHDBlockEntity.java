@@ -33,7 +33,7 @@ public class DHDBlockEntity extends BlockEntity {
 
     public DHDState getDHDState() {
         if (!isLinkedToStargate) return DHDState.IDLE;
-        var stargate = getLinkedStargateTE();
+        SGBaseBlockEntity stargate = getLinkedStargateTE();
         if (stargate != null && stargate.isActive()) return DHDState.ACTIVE;
         return DHDState.LINKED;
     }

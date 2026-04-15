@@ -76,11 +76,6 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
     static final double[] SIN = new double[NUM_RING_SEGMENTS + 1];
     static final double[] COS = new double[NUM_RING_SEGMENTS + 1];
 
-    // Chevron engagement order
-    static final int[][] CHEVRON_ENGAGEMENT_SEQUENCES = {
-            { 9, 3, 4, 5, 6, 0, 1, 2, 9 }, // 7 symbols (9 = never engaged)
-            { 7, 3, 4, 5, 8, 0, 1, 2, 6 } // 9 symbols
-    };
 
     static {
         for (int i = 0; i <= NUM_RING_SEGMENTS; i++) {
@@ -227,9 +222,11 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
             double c1 = COS[i], s1 = SIN[i];
             double c2 = COS[i + 1], s2 = SIN[i + 1];
 
+            // Sides and Back
+            u0 = sideU0; v0 = sideV0;
+            
             // Outer surface
             if (isOuter) {
-                u0 = sideU0; v0 = sideV0;
                 quad(vc, pose, normalMat, light, (float) c1, (float) s1, 0,
                         r2 * c1, r2 * s1, z, 0, 0,
                         r2 * c1, r2 * s1, -z, 0, 16,
@@ -239,7 +236,6 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
 
             // Inner surface
             if (!isOuter) {
-                u0 = sideU0; v0 = sideV0;
                 quad(vc, pose, normalMat, light, (float) -c1, (float) -s1, 0,
                         r1 * c1, r1 * s1, -z, 0, 0,
                         r1 * c1, r1 * s1, z, 0, 16,
@@ -248,7 +244,6 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
             }
 
             // Back face
-            u0 = sideU0; v0 = sideV0;
             quad(vc, pose, normalMat, light, 0, 0, -1,
                     r1 * c1, r1 * s1, -z, 0, 16,
                     r1 * c2, r1 * s2, -z, 16, 16,
@@ -285,10 +280,12 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
 
         int numChevrons = te.getNumChevrons();
         int i0 = numChevrons > 7 ? 0 : 1;
-        float a = 40f; // Angle between chevrons (default for 7 chevrons)
+        float a = 40f; // 40 degrees spacing allows 9 chevrons to cover 320 degrees of the ring
 
         for (int i = i0; i < i0 + numChevrons; i++) {
-            boolean engaged = false; // Static for now
+            int chevronIndex = i - i0;
+            // Basic sequential engagement logic
+            boolean engaged = chevronIndex < te.numEngagedChevrons;
 
             poseStack.pushPose();
             // Rotate to chevron position: 90 degrees minus offset from top-dead-center
@@ -383,28 +380,30 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
                 x1, y1, z2, 16, 16,
                 x2, y2, z2, 16, 0);
 
-        // Chevron lit center (always dimmed for now since nothing is engaged)
+        // Chevron lit center (emissive when engaged)
         selectTile(CHEVRON_LIT_TEXTURE_INDEX);
-        int r = engaged ? 255 : 128;
-        int g = engaged ? 255 : 128;
-        int b = engaged ? 255 : 128;
+        int r = engaged ? 255 : 100;
+        int g = engaged ? 200 : 70; // Slightly orange tint like original
+        int b = engaged ? 150 : 50;
+
+        int litLevel = engaged ? 0xF000F0 : light;
 
         // Face 4 top half
-        quadColor(vc, pose, normalMat, light, 0, 0, 1, r, g, b,
+        quadColor(vc, pose, normalMat, litLevel, 0, 0, 1, r, g, b,
                 x2, y2 - w2, z1, 0, 4,
                 x1 + w1, y1 - w1, z1, 4, 16,
                 x1 + w1, 0, z1, 8, 16,
                 x2, 0, z1, 8, 4);
 
         // Face 4 bottom half
-        quadColor(vc, pose, normalMat, light, 0, 0, 1, r, g, b,
+        quadColor(vc, pose, normalMat, litLevel, 0, 0, 1, r, g, b,
                 x2, 0, z1, 8, 4,
                 x1 + w1, 0, z1, 8, 16,
                 x1 + w1, -y1 + w1, z1, 12, 16,
                 x2, -y2 + w2, z1, 16, 4);
 
         // End 4
-        quadColor(vc, pose, normalMat, light, 1, 0, 0, r, g, b,
+        quadColor(vc, pose, normalMat, litLevel, 1, 0, 0, r, g, b,
                 x2, y2 - w2, z2, 0, 0,
                 x2, y2 - w2, z1, 0, 4,
                 x2, -y2 + w2, z1, 16, 4,

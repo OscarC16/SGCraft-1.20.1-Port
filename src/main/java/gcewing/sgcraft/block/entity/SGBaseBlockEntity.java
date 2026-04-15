@@ -49,8 +49,15 @@ public class SGBaseBlockEntity extends BlockEntity {
     public String homeAddress = "";
     public String addressError = null;
 
-    // Inventory for camouflage (5 slots)
-    public final ItemStackHandler inventory = new ItemStackHandler(5) {
+    // Inventory Slot Constants
+    public static final int SLOT_CAMO_START = 0;
+    public static final int SLOT_CAMO_COUNT = 5;
+    public static final int SLOT_CHEVRON_UPGRADE = 5;
+    public static final int SLOT_IRIS_UPGRADE = 6;
+    public static final int TOTAL_SLOTS = 7;
+
+    // Inventory for camouflage + upgrades
+    public final ItemStackHandler inventory = new ItemStackHandler(TOTAL_SLOTS) {
         @Override
         protected void onContentsChanged(int slot) {
             setChanged();
@@ -66,6 +73,9 @@ public class SGBaseBlockEntity extends BlockEntity {
     }
 
     public int getNumChevrons() {
+        if (!inventory.getStackInSlot(SLOT_CHEVRON_UPGRADE).isEmpty()) {
+            return 9;
+        }
         return hasChevronUpgrade ? 9 : 7;
     }
 
@@ -98,10 +108,10 @@ public class SGBaseBlockEntity extends BlockEntity {
     // --- NBT Serialization ---
 
     @Override
-    protected void saveAdditional(CompoundTag tag) {
+    protected void saveAdditional(@NotNull CompoundTag tag) {
         super.saveAdditional(tag);
         tag.putBoolean("isMerged", isMerged);
-        tag.putInt("state", state.ordinal());
+        tag.putString("state", state.name());
         tag.putInt("numEngagedChevrons", numEngagedChevrons);
         tag.putBoolean("hasChevronUpgrade", hasChevronUpgrade);
         tag.putBoolean("hasIrisUpgrade", hasIrisUpgrade);
@@ -116,14 +126,17 @@ public class SGBaseBlockEntity extends BlockEntity {
     }
 
     @Override
-    public void load(CompoundTag tag) {
+    public void load(@NotNull CompoundTag tag) {
         super.load(tag);
         isMerged = tag.getBoolean("isMerged");
-        state = SGState.valueOf(tag.getInt("state"));
+        if (tag.contains("state")) {
+            state = SGState.valueOf(tag.getString("state"));
+        }
         numEngagedChevrons = tag.getInt("numEngagedChevrons");
         hasChevronUpgrade = tag.getBoolean("hasChevronUpgrade");
         hasIrisUpgrade = tag.getBoolean("hasIrisUpgrade");
         ringAngle = tag.getDouble("ringAngle");
+        lastRingAngle = ringAngle;
         isLinkedToController = tag.getBoolean("isLinkedToController");
         linkedControllerPos = new BlockPos(tag.getInt("linkedX"), tag.getInt("linkedY"), tag.getInt("linkedZ"));
         homeAddress = tag.getString("homeAddress");
