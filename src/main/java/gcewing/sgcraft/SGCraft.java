@@ -11,6 +11,7 @@ import gcewing.sgcraft.registry.ModItems;
 import gcewing.sgcraft.registry.ModCreativeTabs;
 import gcewing.sgcraft.registry.ModBlockEntities;
 import gcewing.sgcraft.registry.ModMenuTypes;
+import gcewing.sgcraft.registry.ModSounds;
 import gcewing.sgcraft.network.ModNetwork;
 import org.slf4j.Logger;
 
@@ -27,6 +28,7 @@ public class SGCraft {
         ModCreativeTabs.CREATIVE_MODE_TABS.register(modEventBus);
         ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
         ModMenuTypes.MENUS.register(modEventBus);
+        ModSounds.SOUND_EVENTS.register(modEventBus);
 
         modEventBus.addListener(this::setup);
         MinecraftForge.EVENT_BUS.register(this);

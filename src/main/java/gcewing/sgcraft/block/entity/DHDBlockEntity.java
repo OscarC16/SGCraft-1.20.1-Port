@@ -3,6 +3,7 @@ package gcewing.sgcraft.block.entity;
 import gcewing.sgcraft.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
@@ -13,7 +14,7 @@ import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemStackHandler;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Item;
+import gcewing.sgcraft.registry.ModItems;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -26,10 +27,10 @@ public class DHDBlockEntity extends BlockEntity {
         IDLE, LINKED, ACTIVE
     }
 
-    // Configuration options (Original values)
-    public static int linkRangeX = 5; // either side
-    public static int linkRangeY = 1; // up or down
-    public static int linkRangeZ = 6; // in front
+    // Configuration options (Updated to 13x13x13 total volume)
+    public static int linkRangeX = 6; // Total width 13
+    public static int linkRangeY = 6; // Total height 13
+    public static int linkRangeZ = 6; // Total depth 13
 
     public DHDState getDHDState() {
         if (!isLinkedToStargate) return DHDState.IDLE;
@@ -40,7 +41,7 @@ public class DHDBlockEntity extends BlockEntity {
 
     public boolean isLinkedToStargate = false;
     public BlockPos linkedStargatePos = BlockPos.ZERO;
-    public String enteredAddress = "";
+    public String enteredAddress = ""; // Used by DHDScreen
 
     public double energyInBuffer = 0;
     public double maxEnergyBuffer = 100000;
@@ -48,8 +49,7 @@ public class DHDBlockEntity extends BlockEntity {
     public final ItemStackHandler inventory = new ItemStackHandler(4) {
         @Override
         public boolean isItemValid(int slot, @NotNull ItemStack stack) {
-            Item item = stack.getItem();
-            return item == gcewing.sgcraft.registry.ModItems.NAQUADAH.get();
+            return stack.is(ModItems.NAQUADAH.get());
         }
 
         @Override
@@ -61,6 +61,20 @@ public class DHDBlockEntity extends BlockEntity {
 
     public DHDBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.DHD_BLOCK_ENTITY.get(), pos, state);
+    }
+
+    public void tick(Level level, BlockPos pos, BlockState state) {
+        if (level.isClientSide) return;
+
+        // Auto-link if not linked, every 2 seconds
+        if (!isLinkedToStargate && level.getGameTime() % 40 == 0) {
+            checkForLink();
+        }
+        
+        // Verify link if linked, every 5 seconds
+        if (isLinkedToStargate && level.getGameTime() % 100 == 0) {
+            getLinkedStargateTE(); // This now triggers verification/cleanup
+        }
     }
 
     public void checkForLink() {
@@ -117,8 +131,18 @@ public class DHDBlockEntity extends BlockEntity {
     public SGBaseBlockEntity getLinkedStargateTE() {
         if (isLinkedToStargate && level != null) {
             BlockEntity be = level.getBlockEntity(linkedStargatePos);
-            if (be instanceof SGBaseBlockEntity)
-                return (SGBaseBlockEntity)be;
+            if (be instanceof SGBaseBlockEntity targetStargate) {
+                // Heartbeat/Verification: Ensure Stargate still thinks it is linked TO US
+                if (targetStargate.isLinkedToController && worldPosition.equals(targetStargate.linkedControllerPos)) {
+                    return targetStargate;
+                } else {
+                    // Stargate is linked to someone else or lost our link, clear locally
+                    clearLinkToStargate();
+                }
+            } else if (!level.isClientSide) {
+                // Stargate block is gone, clear locally
+                clearLinkToStargate();
+            }
         }
         return null;
     }
@@ -152,11 +176,7 @@ public class DHDBlockEntity extends BlockEntity {
         linkedStargatePos = new BlockPos(tag.getInt("stargateX"), tag.getInt("stargateY"), tag.getInt("stargateZ"));
         enteredAddress = tag.getString("enteredAddress");
         energyInBuffer = tag.getDouble("energy");
-        CompoundTag invTag = tag.getCompound("inventory");
-        if (invTag.contains("Size", 3) && invTag.getInt("Size") < 4) {
-            invTag.putInt("Size", 4);
-        }
-        inventory.deserializeNBT(invTag);
+        inventory.deserializeNBT(tag.getCompound("inventory"));
     }
 
     @Override

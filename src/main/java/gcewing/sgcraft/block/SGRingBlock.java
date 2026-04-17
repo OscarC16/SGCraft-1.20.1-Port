@@ -10,6 +10,7 @@ import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
@@ -31,7 +32,7 @@ public class SGRingBlock extends BaseEntityBlock {
     /** Whether this is a chevron variant (true) or a plain ring (false) */
     private final boolean isChevron;
 
-    public SGRingBlock(Properties properties, boolean isChevron) {
+    public SGRingBlock(BlockBehaviour.Properties properties, boolean isChevron) {
         super(properties);
         this.isChevron = isChevron;
         this.registerDefaultState(this.stateDefinition.any().setValue(MERGED, false));
@@ -77,6 +78,21 @@ public class SGRingBlock extends BaseEntityBlock {
     @Override
     public boolean propagatesSkylightDown(BlockState state, net.minecraft.world.level.BlockGetter level, BlockPos pos) {
         return true; // Dejar pasar la luz del sol
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public float getDestroyProgress(BlockState state, Player player, net.minecraft.world.level.BlockGetter world, BlockPos pos) {
+        if (state.getValue(MERGED)) {
+            BlockEntity be = world.getBlockEntity(pos);
+            if (be instanceof SGRingBlockEntity rte && rte.isMerged) {
+                BlockEntity baseBE = world.getBlockEntity(rte.basePos);
+                if (baseBE instanceof gcewing.sgcraft.block.entity.SGBaseBlockEntity sbe && sbe.isActive()) {
+                    return 0.0F; // Unbreakable while active
+                }
+            }
+        }
+        return super.getDestroyProgress(state, player, world, pos);
     }
 
     // --- Multiblock triggers ---

@@ -4,6 +4,7 @@ import gcewing.sgcraft.SGCraft;
 import gcewing.sgcraft.block.DHDBlock;
 import gcewing.sgcraft.block.SGBaseBlock;
 import gcewing.sgcraft.block.SGRingBlock;
+import gcewing.sgcraft.block.SGWormholeBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -76,5 +77,15 @@ public class ModBlocks {
                     .sound(SoundType.STONE)
                     .noOcclusion()
                     .requiresCorrectToolForDrops()
+            ));
+
+    public static final RegistryObject<Block> STARGATE_WORMHOLE = BLOCKS.register("stargate_wormhole",
+            () -> new SGWormholeBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BLUE)
+                    .strength(-1.0F, 3600000.0F)
+                    .noCollission()
+                    .noOcclusion()
+                    .lightLevel((state) -> 15)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK)
             ));
 }

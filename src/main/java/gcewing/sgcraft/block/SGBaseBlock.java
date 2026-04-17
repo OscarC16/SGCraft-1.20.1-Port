@@ -1,46 +1,57 @@
 package gcewing.sgcraft.block;
 
-import gcewing.sgcraft.world.inventory.SGBaseMenu;
 import gcewing.sgcraft.block.entity.SGBaseBlockEntity;
 import gcewing.sgcraft.block.entity.SGRingBlockEntity;
+import gcewing.sgcraft.block.entity.DHDBlockEntity;
+import gcewing.sgcraft.registry.ModBlockEntities;
 import gcewing.sgcraft.registry.ModBlocks;
+import gcewing.sgcraft.world.inventory.SGBaseMenu;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.SimpleMenuProvider;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ContainerLevelAccess;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraftforge.network.NetworkHooks;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.world.level.BlockGetter;
 
 /**
- * Stargate Base Block — the center-bottom block of the Stargate multiblock structure.
- * When placed, it checks surrounding blocks for the correct ring/chevron pattern.
- * If the pattern matches, it "merges" the structure and the 3D Stargate ring is rendered.
+ * Stargate Base Block — the center-bottom block of the Stargate multiblock
+ * structure.
+ * When placed, it checks surrounding blocks for the correct ring/chevron
+ * pattern.
+ * If the pattern matches, it "merges" the structure and the 3D Stargate ring is
+ * rendered.
  *
  * Pattern (viewed from front, base at position [B]):
- *   Col:  -2  -1   0  +1  +2
- *   Row4:  2   1   2   1   2    (top)
- *   Row3:  1   0   0   0   1
- *   Row2:  2   0   0   0   2
- *   Row1:  1   0   0   0   1
- *   Row0:  2   1  [B]  1   2    (bottom/base)
+ * Col: -2 -1 0 +1 +2
+ * Row4: 2 1 2 1 2 (top)
+ * Row3: 1 0 0 0 1
+ * Row2: 2 0 0 0 2
+ * Row1: 1 0 0 0 1
+ * Row0: 2 1 [B] 1 2 (bottom/base)
  *
  * 0 = Air, 1 = Ring block, 2 = Chevron block, [B] = this block
  */
@@ -50,20 +61,33 @@ public class SGBaseBlock extends BaseEntityBlock {
     public static final BooleanProperty MERGED = BooleanProperty.create("merged");
 
     // Multiblock pattern: pattern[row][col] where row 0 is the base row
-    // Indexed as pattern[4-j][2+i] in the original, here stored directly as [row][col]
+    // Indexed as pattern[4-j][2+i] in the original, here stored directly as
+    // [row][col]
     static final int[][] PATTERN = {
-        {2, 1, 0, 1, 2}, // Row 0 (base level) — center is the base block itself
-        {1, 0, 0, 0, 1}, // Row 1
-        {2, 0, 0, 0, 2}, // Row 2
-        {1, 0, 0, 0, 1}, // Row 3
-        {2, 1, 2, 1, 2}, // Row 4 (top)
+            { 2, 1, 0, 1, 2 }, // Row 0 (base level) — center is the base block itself
+            { 1, 0, 0, 0, 1 }, // Row 1
+            { 2, 0, 0, 0, 2 }, // Row 2
+            { 1, 0, 0, 0, 1 }, // Row 3
+            { 2, 1, 2, 1, 2 }, // Row 4 (top)
     };
 
-    public SGBaseBlock(Properties properties) {
+    public SGBaseBlock(BlockBehaviour.Properties properties) {
         super(properties);
         this.registerDefaultState(this.stateDefinition.any()
                 .setValue(FACING, Direction.NORTH)
                 .setValue(MERGED, false));
+    }
+
+    private static final VoxelShape BASE_SHAPE = Block.box(0, 0, 0, 16, 16, 16);
+
+    @Override
+    public @NotNull VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return BASE_SHAPE;
+    }
+
+    @Override
+    public @NotNull VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return BASE_SHAPE;
     }
 
     @Override
@@ -80,6 +104,13 @@ public class SGBaseBlock extends BaseEntityBlock {
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new SGBaseBlockEntity(pos, state);
+    }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
+            BlockEntityType<T> type) {
+        return createTickerHelper(type, ModBlockEntities.SG_BASE_BLOCK_ENTITY.get(), SGBaseBlockEntity::tick);
     }
 
     @Override
@@ -103,7 +134,45 @@ public class SGBaseBlock extends BaseEntityBlock {
     }
 
     @Override
-    public boolean propagatesSkylightDown(BlockState state, net.minecraft.world.level.BlockGetter level, net.minecraft.core.BlockPos pos) {
+    @SuppressWarnings("deprecation")
+    public float getDestroyProgress(BlockState state, Player player, BlockGetter world, BlockPos pos) {
+        BlockEntity be = world.getBlockEntity(pos);
+        if (be instanceof SGBaseBlockEntity baseBE && baseBE.isActive()) {
+            return 0.0F; // Unbreakable while active
+        }
+        return super.getDestroyProgress(state, player, world, pos);
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!state.is(newState.getBlock())) {
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof SGBaseBlockEntity baseBE) {
+                // 1. Unlink DHD
+                if (baseBE.isLinkedToController) {
+                    BlockEntity controllerBE = level.getBlockEntity(baseBE.linkedControllerPos);
+                    if (controllerBE instanceof DHDBlockEntity dhd) {
+                        dhd.clearLinkToStargate();
+                    }
+                }
+                // 2. Unmerge structure
+                unmerge(level, pos);
+                // 3. Drop inventory
+                for (int i = 0; i < baseBE.inventory.getSlots(); i++) {
+                    net.minecraft.world.item.ItemStack stack = baseBE.inventory.getStackInSlot(i);
+                    if (!stack.isEmpty()) {
+                        net.minecraft.world.Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), stack);
+                    }
+                }
+            }
+            super.onRemove(state, level, pos, newState, isMoving);
+        }
+    }
+
+    @Override
+    public boolean propagatesSkylightDown(BlockState state, net.minecraft.world.level.BlockGetter level,
+            net.minecraft.core.BlockPos pos) {
         return true; // Dejar pasar la luz del sol
     }
 
@@ -118,72 +187,60 @@ public class SGBaseBlock extends BaseEntityBlock {
         }
     }
 
-    @Override
-    @SuppressWarnings("deprecation")
-    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
-        if (!state.is(newState.getBlock())) {
-            if (!level.isClientSide) {
-                BlockEntity be = level.getBlockEntity(pos);
-                if (be instanceof SGBaseBlockEntity baseBE) {
-                    for (int i = 0; i < baseBE.inventory.getSlots(); i++) {
-                        net.minecraft.world.Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), baseBE.inventory.getStackInSlot(i));
-                    }
-                }
-                unmerge(level, pos);
-            }
-        }
-        super.onRemove(state, level, pos, newState, movedByPiston);
-    }
+
 
     @Override
-    public @NotNull InteractionResult use(@NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull InteractionHand hand, @NotNull BlockHitResult hit) {
+    public @NotNull InteractionResult use(@NotNull BlockState state, Level level, @NotNull BlockPos pos,
+            @NotNull Player player, @NotNull InteractionHand hand, @NotNull BlockHitResult hit) {
         if (!level.isClientSide) {
             net.minecraft.world.item.ItemStack stack = player.getItemInHand(hand);
             BlockEntity be = level.getBlockEntity(pos);
-            
+
             if (be instanceof SGBaseBlockEntity baseBE && baseBE.isMerged) {
                 // Handle Chevron Upgrade
                 if (stack.is(gcewing.sgcraft.registry.ModItems.SG_CHEVRON_UPGRADE.get().asItem())) {
                     if (baseBE.inventory.getStackInSlot(SGBaseBlockEntity.SLOT_CHEVRON_UPGRADE).isEmpty()) {
                         baseBE.inventory.setStackInSlot(SGBaseBlockEntity.SLOT_CHEVRON_UPGRADE, stack.split(1));
                         baseBE.hasChevronUpgrade = true; // Sync boolean for convenience
-                        level.playSound(null, pos, net.minecraft.sounds.SoundEvents.NETHERITE_BLOCK_PLACE, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+                        level.playSound(null, pos, net.minecraft.sounds.SoundEvents.NETHERITE_BLOCK_PLACE,
+                                net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
                         level.sendBlockUpdated(pos, state, state, 3);
-                        player.displayClientMessage(Component.literal("Chevron Upgrade installed! Stargate now supports 9 symbols."), true);
                         return InteractionResult.SUCCESS;
                     } else {
-                        player.displayClientMessage(Component.literal("Stargate already has a Chevron Upgrade."), true);
                         return InteractionResult.CONSUME;
                     }
                 }
-                
+
                 // Open GUI if not holding an upgrade
                 NetworkHooks.openScreen((ServerPlayer) player, new SimpleMenuProvider(
-                    (id, inv, p) -> new SGBaseMenu(id, inv, baseBE, ContainerLevelAccess.create(level, pos)),
-                    Component.literal("Stargate Address")
-                ), pos);
+                        (id, inv, p) -> new SGBaseMenu(id, inv, baseBE, ContainerLevelAccess.create(level, pos)),
+                        Component.literal("Stargate Address")), pos);
             }
         }
         return InteractionResult.SUCCESS;
     }
 
     /**
-     * Check if all ring/chevron blocks are in the correct positions to form a Stargate.
+     * Check if all ring/chevron blocks are in the correct positions to form a
+     * Stargate.
      * If so, merge them all into the structure.
      */
     public void checkForMerge(Level level, BlockPos basePos, BlockState state) {
         SGBaseBlockEntity baseBE = getBlockEntity(level, basePos);
-        if (baseBE == null || baseBE.isMerged) return;
+        if (baseBE == null || baseBE.isMerged)
+            return;
 
         Direction facing = state.getValue(FACING);
 
         // Verify all pattern positions
-        for (int i = -2; i <= 2; i++) {       // lateral (left-right)
-            for (int j = 0; j <= 4; j++) {    // vertical (up)
-                if (i == 0 && j == 0) continue; // Skip base block itself
+        for (int i = -2; i <= 2; i++) { // lateral (left-right)
+            for (int j = 0; j <= 4; j++) { // vertical (up)
+                if (i == 0 && j == 0)
+                    continue; // Skip base block itself
 
                 int expectedType = PATTERN[j][i + 2];
-                if (expectedType == 0) continue; // Air position, skip
+                if (expectedType == 0)
+                    continue; // Air position, skip
 
                 BlockPos ringPos = getWorldPos(basePos, facing, i, j);
                 int actualType = getRingBlockType(level, ringPos);
@@ -201,10 +258,12 @@ public class SGBaseBlock extends BaseEntityBlock {
 
         for (int i = -2; i <= 2; i++) {
             for (int j = 0; j <= 4; j++) {
-                if (i == 0 && j == 0) continue;
+                if (i == 0 && j == 0)
+                    continue;
 
                 int expectedType = PATTERN[j][i + 2];
-                if (expectedType == 0) continue;
+                if (expectedType == 0)
+                    continue;
 
                 BlockPos ringPos = getWorldPos(basePos, facing, i, j);
                 mergeRingBlock(level, ringPos, basePos);
@@ -217,7 +276,8 @@ public class SGBaseBlock extends BaseEntityBlock {
      */
     public void unmerge(Level level, BlockPos basePos) {
         SGBaseBlockEntity baseBE = getBlockEntity(level, basePos);
-        if (baseBE == null) return;
+        if (baseBE == null)
+            return;
 
         if (baseBE.isMerged) {
             baseBE.setMerged(false);
@@ -255,6 +315,7 @@ public class SGBaseBlock extends BaseEntityBlock {
 
     /**
      * Determine what type of ring block is at the given position.
+     * 
      * @return 1 = ring, 2 = chevron, 0 = air, -1 = incompatible block
      */
     private int getRingBlockType(Level level, BlockPos pos) {

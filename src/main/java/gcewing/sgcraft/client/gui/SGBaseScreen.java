@@ -31,7 +31,7 @@ public class SGBaseScreen extends SGScreen<SGBaseMenu> {
         // Draw Address Symbols
         String address = menu.getBlockEntity().homeAddress;
         if (address != null && !address.isEmpty()) {
-            drawAddressSymbols(guiGraphics, x + imageWidth / 2, y + 22, address);
+            drawAddressSymbols(guiGraphics, x + imageWidth / 2, y + 34, address);
             
             // Draw address text
             String formatted = SGAddressing.formatAddress(address, "-", "-");

@@ -41,6 +41,11 @@ public class DHDScreen extends Screen {
     }
 
     @Override
+    public boolean isPauseScreen() {
+        return false;
+    }
+
+    @Override
     protected void init() {
         super.init();
         dhdTop = height - dhdHeight;
@@ -100,7 +105,8 @@ public class DHDScreen extends Screen {
         
         int cellSize = 24;
         int x0 = width / 2 - (n * cellSize) / 2;
-        int y0 = dhdTop - 80;
+        // Moved down from dhdTop - 80 to dhdTop - 74 to fix upward offset
+        int y0 = dhdTop - 74;
 
         for (int i = 0; i < n; i++) {
             char c = enteredAddress.charAt(i);
