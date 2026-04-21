@@ -72,6 +72,16 @@ public class DHDFuelScreen extends SGScreen<DHDFuelMenu> {
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
         renderBackground(guiGraphics);
         super.render(guiGraphics, mouseX, mouseY, delta);
+        
+        // Tooltip for energy gauge
+        int x = (width - imageWidth) / 2;
+        int y = (height - imageHeight) / 2;
+        if (mouseX >= x + 214 && mouseX <= x + 214 + 16 && mouseY >= y + 84 && mouseY <= y + 84 + 34) {
+            int energy = (int)menu.getBlockEntity().energyInBuffer;
+            int maxEnergy = (int)menu.getBlockEntity().maxEnergyBuffer;
+            guiGraphics.renderTooltip(this.font, Component.literal(String.format("%d / %d FE", energy, maxEnergy)), mouseX, mouseY);
+        }
+
         renderTooltip(guiGraphics, mouseX, mouseY);
     }
 }

@@ -87,6 +87,12 @@ public class SGBaseBlockEntity extends BlockEntity {
     public double previousTargetRingAngle = -9999;
     public int clientAnimationTicks = TICKS_FOR_RING;
 
+    // Energy costs (Forge Energy)
+    public static final int ENERGY_OPEN_WORMHOLE = 50000;
+    public static final int ENERGY_MAINTAIN_WORMHOLE = 100;
+    public static final double INTER_DIMENSION_MULTIPLIER = 10.0;
+    public static final double DISTANCE_FACTOR = 0.01;
+
     // Master dial clock and state
     public int dialTicks = 0; // 0 to 29 for each symbol interval
     public static final int TICKS_PER_SYMBOL = 30;
@@ -380,6 +386,38 @@ public class SGBaseBlockEntity extends BlockEntity {
         updateIrisAnimation();
 
         // Detect state changes for transient animations
+        if (state == SGState.Connected) {
+            // Energy consumption
+            if (level.getGameTime() % 20 == 0) { // Every second
+                DHDBlockEntity dhd = getLinkedDHD();
+                if (dhd != null) {
+                    double distance = 0;
+                    if (targetPos != null && targetDimension != null) {
+                        if (level.dimension().equals(targetDimension)) {
+                            distance = Math.sqrt(worldPosition.distSqr(targetPos));
+                        } else {
+                            distance = 1000; // Fixed penalty for dimensions
+                        }
+                    }
+                    
+                    double costPerSecond = ENERGY_MAINTAIN_WORMHOLE * 20;
+                    if (targetDimension != null && !level.dimension().equals(targetDimension)) {
+                        costPerSecond *= INTER_DIMENSION_MULTIPLIER;
+                    }
+                    costPerSecond += (distance * DISTANCE_FACTOR * 20);
+                    
+                    int totalCost = (int)costPerSecond;
+                    if (dhd.energyStorage.getEnergyStored() < totalCost) {
+                        LOGGER.info("Stargate at {} shutting down due to power failure", worldPosition);
+                        disconnect();
+                    } else {
+                        dhd.energyStorage.extractEnergy(totalCost, false);
+                    }
+                }
+            }
+        }
+
+        // Detect state changes for transient animations
         if (state != lastState) {
             if (state == SGState.Transient) {
                 initiateOpeningTransient();
@@ -453,10 +491,28 @@ public class SGBaseBlockEntity extends BlockEntity {
         }
     }
 
-    public void spawnWormhole() {
-        if (level != null && !level.isClientSide) {
-            level.playSound(null, worldPosition, ModSounds.STARGATE_WORMHOLE_OPEN.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
+    public DHDBlockEntity getLinkedDHD() {
+        if (isLinkedToController && level != null) {
+            BlockEntity be = level.getBlockEntity(linkedControllerPos);
+            if (be instanceof DHDBlockEntity dhd) {
+                return dhd;
+            }
         }
+        return null;
+    }
+
+    public void spawnWormhole() {
+        if (level == null || level.isClientSide)
+            return;
+            
+        // Consume opening energy
+        DHDBlockEntity dhd = getLinkedDHD();
+        if (dhd != null) {
+            dhd.energyStorage.extractEnergy(ENERGY_OPEN_WORMHOLE, false);
+        }
+
+        this.state = SGState.Connected;
+        level.playSound(null, worldPosition, ModSounds.STARGATE_WORMHOLE_OPEN.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
     }
 
     public void removeWormhole() {
@@ -594,7 +650,18 @@ public class SGBaseBlockEntity extends BlockEntity {
             return;
         }
 
-        // 3. Initiate Dialing
+        // 3. Check for Energy
+        DHDBlockEntity dhd = getLinkedDHD();
+        if (dhd != null) {
+            if (dhd.energyStorage.getEnergyStored() < ENERGY_OPEN_WORMHOLE) {
+                this.addressError = "Insufficient Power (FE)";
+                level.playSound(null, worldPosition, ModSounds.STARGATE_ABORT.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
+                sync();
+                return;
+            }
+        }
+
+        // 4. Initiate Dialing
         SGBaseBlockEntity target = findRemoteStargate(loc);
         if (target == null) {
             this.addressError = "No response from terminal";
