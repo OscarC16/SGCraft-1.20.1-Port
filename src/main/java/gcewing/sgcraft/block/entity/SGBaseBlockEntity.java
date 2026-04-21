@@ -355,6 +355,36 @@ public class SGBaseBlockEntity extends BlockEntity {
                 te.sync();
             }
         } else if (te.state == SGState.Connected) {
+            // Energy consumption (Every second) - Only for initiator
+            if (!te.isIncoming && level.getGameTime() % 20 == 0) {
+                DHDBlockEntity dhd = te.getLinkedDHD();
+                if (dhd != null) {
+                    double distance = 0;
+                    if (te.targetPos != null && te.targetDimension != null) {
+                        if (level.dimension().equals(te.targetDimension)) {
+                            distance = Math.sqrt(te.worldPosition.distSqr(te.targetPos));
+                        } else {
+                            distance = 1000; // Fixed penalty for dimensions
+                        }
+                    }
+                    
+                    double costPerSecond = ENERGY_MAINTAIN_WORMHOLE * 20;
+                    if (te.targetDimension != null && !level.dimension().equals(te.targetDimension)) {
+                        costPerSecond *= INTER_DIMENSION_MULTIPLIER;
+                    }
+                    costPerSecond += (distance * DISTANCE_FACTOR * 20);
+                    
+                    int totalCost = (int)costPerSecond;
+                    if (dhd.energyStorage.getEnergyStored() < totalCost) {
+                        LOGGER.info("Stargate at {} shutting down due to power failure", te.worldPosition);
+                        te.disconnect();
+                    } else {
+                        dhd.energyStorage.extractEnergy(totalCost, false);
+                        te.sync();
+                    }
+                }
+            }
+
             // Auto-close logic: 5 minutes max
             te.connectionTicks++;
             if (te.connectionTicks >= MAX_CONNECTION_TICKS) {
@@ -386,37 +416,6 @@ public class SGBaseBlockEntity extends BlockEntity {
         updateIrisAnimation();
 
         // Detect state changes for transient animations
-        if (state == SGState.Connected) {
-            // Energy consumption
-            if (level.getGameTime() % 20 == 0) { // Every second
-                DHDBlockEntity dhd = getLinkedDHD();
-                if (dhd != null) {
-                    double distance = 0;
-                    if (targetPos != null && targetDimension != null) {
-                        if (level.dimension().equals(targetDimension)) {
-                            distance = Math.sqrt(worldPosition.distSqr(targetPos));
-                        } else {
-                            distance = 1000; // Fixed penalty for dimensions
-                        }
-                    }
-                    
-                    double costPerSecond = ENERGY_MAINTAIN_WORMHOLE * 20;
-                    if (targetDimension != null && !level.dimension().equals(targetDimension)) {
-                        costPerSecond *= INTER_DIMENSION_MULTIPLIER;
-                    }
-                    costPerSecond += (distance * DISTANCE_FACTOR * 20);
-                    
-                    int totalCost = (int)costPerSecond;
-                    if (dhd.energyStorage.getEnergyStored() < totalCost) {
-                        LOGGER.info("Stargate at {} shutting down due to power failure", worldPosition);
-                        disconnect();
-                    } else {
-                        dhd.energyStorage.extractEnergy(totalCost, false);
-                    }
-                }
-            }
-        }
-
         // Detect state changes for transient animations
         if (state != lastState) {
             if (state == SGState.Transient) {
@@ -508,17 +507,20 @@ public class SGBaseBlockEntity extends BlockEntity {
         // Consume opening energy
         DHDBlockEntity dhd = getLinkedDHD();
         if (dhd != null) {
-            dhd.energyStorage.extractEnergy(ENERGY_OPEN_WORMHOLE, false);
+            int openingCost = ENERGY_OPEN_WORMHOLE;
+            if (targetDimension != null && !level.dimension().equals(targetDimension)) {
+                openingCost *= INTER_DIMENSION_MULTIPLIER;
+            }
+            dhd.energyStorage.extractEnergy(openingCost, false);
+            sync();
         }
 
-        this.state = SGState.Connected;
         level.playSound(null, worldPosition, ModSounds.STARGATE_WORMHOLE_OPEN.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
     }
 
     public void removeWormhole() {
-        if (level != null && !level.isClientSide) {
-            level.playSound(null, worldPosition, ModSounds.STARGATE_WORMHOLE_CLOSE.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
-        }
+        // Sound is now played at the START of disconnection in disconnect().
+        // This method handles any final cleanup after the animation completes.
     }
 
     public double[][][] getEventHorizonGrid() {
@@ -653,7 +655,12 @@ public class SGBaseBlockEntity extends BlockEntity {
         // 3. Check for Energy
         DHDBlockEntity dhd = getLinkedDHD();
         if (dhd != null) {
-            if (dhd.energyStorage.getEnergyStored() < ENERGY_OPEN_WORMHOLE) {
+            int openingCost = ENERGY_OPEN_WORMHOLE;
+            if (loc.dimension != null && !level.dimension().equals(loc.dimension)) {
+                openingCost *= INTER_DIMENSION_MULTIPLIER;
+            }
+            
+            if (dhd.energyStorage.getEnergyStored() < openingCost) {
                 this.addressError = "Insufficient Power (FE)";
                 level.playSound(null, worldPosition, ModSounds.STARGATE_ABORT.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
                 sync();
@@ -748,10 +755,13 @@ public class SGBaseBlockEntity extends BlockEntity {
         this.connectionTicks = 0;
         this.clientAnimationTicks = 0;
         LOGGER.info("Stargate at {} disconnecting from state {}", worldPosition, oldState);
-        sync();
 
         if (oldState == SGState.Dialling) {
+            // Dialling abort sound
             level.playSound(null, worldPosition, ModSounds.STARGATE_ABORT.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
+        } else if (oldState == SGState.Connected || oldState == SGState.Transient) {
+            // Play close sound immediately at the START of the closing animation
+            level.playSound(null, worldPosition, ModSounds.STARGATE_WORMHOLE_CLOSE.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
         }
 
         // Notify target Stargate for bidirectional disconnect
@@ -1156,8 +1166,9 @@ public class SGBaseBlockEntity extends BlockEntity {
         // 1. Vaporize Blocks in front
         int reach = 4;
         for (int d = 1; d <= reach; d++) {
-            for (int h = -1; h <= 1; h++) {
-                for (int w = -1; w <= 1; w++) {
+            int range = (d <= 2) ? 1 : 0; // 3x3 for d=1,2; 1x1 for d=3,4
+            for (int h = -range; h <= range; h++) {
+                for (int w = -range; w <= range; w++) {
                     BlockPos target = centerPos.relative(facing, d).relative(right, w).above(h);
                     BlockState targetState = level.getBlockState(target);
 

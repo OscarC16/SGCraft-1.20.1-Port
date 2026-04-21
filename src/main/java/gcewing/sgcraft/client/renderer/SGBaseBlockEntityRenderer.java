@@ -596,18 +596,19 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
         // Quads for the rings > 0
         for (int i = 1; i < SGBaseBlockEntity.ehGridRadialSize; i++) {
             for (int j = 0; j < SGBaseBlockEntity.ehGridPolarSize; j++) {
-                ehVertexQuad(vc, pose, normal, grid, i, j, rclip, ehBandWidth, combinedLight, flat);
-                ehVertexQuad(vc, pose, normal, grid, i + 1, j, rclip, ehBandWidth, combinedLight, flat);
-                ehVertexQuad(vc, pose, normal, grid, i + 1, j + 1, rclip, ehBandWidth, combinedLight, flat);
-                ehVertexQuad(vc, pose, normal, grid, i, j + 1, rclip, ehBandWidth, combinedLight, flat);
+                ehVertexQuad(vc, pose, normal, grid, i, j, rclip, ehBandWidth, combinedLight, flat, back);
+                ehVertexQuad(vc, pose, normal, grid, i + 1, j, rclip, ehBandWidth, combinedLight, flat, back);
+                ehVertexQuad(vc, pose, normal, grid, i + 1, j + 1, rclip, ehBandWidth, combinedLight, flat, back);
+                ehVertexQuad(vc, pose, normal, grid, i, j + 1, rclip, ehBandWidth, combinedLight, flat, back);
             }
         }
 
         // Center Fan
         double zCenter = flat ? 0 : ehClip(grid[1][0], 0, rclip);
+        if (back && !flat) zCenter = Math.min(zCenter, 0.1);
         for (int j = 0; j < SGBaseBlockEntity.ehGridPolarSize; j++) {
-            ehVertexQuad(vc, pose, normal, grid, 1, j, rclip, ehBandWidth, combinedLight, flat);
-            ehVertexQuad(vc, pose, normal, grid, 1, j + 1, rclip, ehBandWidth, combinedLight, flat);
+            ehVertexQuad(vc, pose, normal, grid, 1, j, rclip, ehBandWidth, combinedLight, flat, back);
+            ehVertexQuad(vc, pose, normal, grid, 1, j + 1, rclip, ehBandWidth, combinedLight, flat, back);
             for (int k = 0; k < 2; k++) {
                 vc.vertex(pose, 0, 0, (float) zCenter)
                         .color(255, 255, 255, 255)
@@ -622,7 +623,7 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
     }
 
     private void ehVertexQuad(VertexConsumer vc, Matrix4f pose, Matrix3f normal, double[][] grid, int i, int j,
-            double rclip, double ehBandWidth, int combinedLight, boolean flat) {
+            double rclip, double ehBandWidth, int combinedLight, boolean flat, boolean back) {
         double r = i * ehBandWidth;
         // Normalize j index to wrap around SIN/COS arrays
         int jj = j % SGBaseBlockEntity.ehGridPolarSize;
@@ -632,6 +633,10 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
         double x = r * COS[jj];
         double y = r * SIN[jj];
         double z = flat ? 0 : ehClip(grid[j + 1][i], r, rclip);
+        
+        if (back && !flat) {
+            z = Math.min(z, 0.1); // Allow ripples but suppress Kawoosh expansion
+        }
 
         vc.vertex(pose, (float) x, (float) y, (float) z)
                 .color(255, 255, 255, 255)
