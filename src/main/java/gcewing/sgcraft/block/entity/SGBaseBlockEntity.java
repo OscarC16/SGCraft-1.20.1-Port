@@ -6,8 +6,8 @@ import gcewing.sgcraft.world.SGNetwork;
 import gcewing.sgcraft.registry.ModBlockEntities;
 import gcewing.sgcraft.registry.ModSounds;
 import gcewing.sgcraft.block.SGBaseBlock;
+import gcewing.sgcraft.block.SGIrisBlock;
 import gcewing.sgcraft.block.SGRingBlock;
-import gcewing.sgcraft.block.SGWormholeBlock;
 import gcewing.sgcraft.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundSource;
@@ -36,6 +36,12 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.phys.Vec3;
+import java.util.Locale;
+import java.util.List;
+import net.minecraft.commands.CommandSourceStack;
 
 /**
  * Tile entity for the Stargate Base block — the center-bottom of the multiblock
@@ -50,12 +56,21 @@ public class SGBaseBlockEntity extends BlockEntity {
 
     // Operational state
     public SGState state = SGState.Idle;
- 
+
     // Chevron/dialling data
     public int numEngagedChevrons = 0;
     public boolean hasChevronUpgrade = false;
     public boolean hasIrisUpgrade = false;
     public boolean isIncoming = false;
+
+    // Iris state
+    public enum IrisState {
+        OPEN, CLOSED, OPENING, CLOSING
+    }
+
+    public IrisState irisState = IrisState.OPEN;
+    public float irisPhase = 1.0f; // 1.0 = Fully open, 0.0 = Fully closed
+    public static final int IRIS_TIME = 45; // 2 seconds to open/close
 
     // Ring animation data
     public double ringAngle = 0;
@@ -73,10 +88,10 @@ public class SGBaseBlockEntity extends BlockEntity {
     public int clientAnimationTicks = TICKS_FOR_RING;
 
     // Master dial clock and state
-    public int dialTicks = 0; // 0 to 49 for each symbol interval
-    public static final int TICKS_PER_SYMBOL = 50;
-    public static final int TICKS_FOR_RING = 40; // Ring rotation
-    public static final int TICKS_FOR_CHEVRON = 10; // Chevron engage
+    public int dialTicks = 0; // 0 to 29 for each symbol interval
+    public static final int TICKS_PER_SYMBOL = 30;
+    public static final int TICKS_FOR_RING = 20; // Ring rotation (1 second)
+    public static final int TICKS_FOR_CHEVRON = 10; // Chevron engage (0.5 seconds)
 
     // Chevron animation data (0.0 to 1.0)
     public float[] chevronEngageAmount = new float[9];
@@ -160,6 +175,11 @@ public class SGBaseBlockEntity extends BlockEntity {
                 if (homeAddress != null && !homeAddress.isEmpty()) {
                     network.register(homeAddress, level.dimension(), worldPosition);
                 }
+                updateLight(); // Ensure light state is correct on merge
+                // Re-place iris blocks if the structure is completed and iris was closed/closing
+                if (hasIrisUpgrade && irisPhase < 1.0f) {
+                    placeIrisBlocks();
+                }
             } else {
                 if (homeAddress != null && !homeAddress.isEmpty()) {
                     network.unregister(homeAddress);
@@ -169,6 +189,7 @@ public class SGBaseBlockEntity extends BlockEntity {
             sync();
         }
     }
+
 
     public void updateForcedChunk(boolean force) {
         if (level == null || level.isClientSide)
@@ -189,6 +210,9 @@ public class SGBaseBlockEntity extends BlockEntity {
             this.homeAddress = SGAddressing.addressForLocation(worldPosition, dimIndex);
             setChanged();
         }
+        if (level != null && !level.isClientSide) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        }
     }
 
     private int getDimensionIndex(Level level) {
@@ -206,6 +230,11 @@ public class SGBaseBlockEntity extends BlockEntity {
         if (level.isClientSide) {
             te.updateAnimation();
             return;
+        }
+
+        te.updateIris();
+        if (te.state == SGState.Connected || te.state == SGState.Transient) {
+            te.checkEntityInteractions();
         }
 
         if (te.state == SGState.Dialling) {
@@ -296,6 +325,7 @@ public class SGBaseBlockEntity extends BlockEntity {
 
                     if (te.numEngagedChevrons >= requiredChevrons) {
                         te.state = SGState.Transient;
+                        te.updateLight();
                         te.connectionTicks = 0;
                         te.spawnWormhole();
                         if (te.level instanceof ServerLevel sl) {
@@ -308,8 +338,13 @@ public class SGBaseBlockEntity extends BlockEntity {
             }
         } else if (te.state == SGState.Transient) {
             te.connectionTicks++;
+            // Apply Kawoosh physical effects during the expansion phase (ticks 2 to 30)
+            if (te.connectionTicks > 2 && te.connectionTicks < 30) {
+                te.performKawooshPhysicalEffects();
+            }
             if (te.connectionTicks >= 40) {
                 te.state = SGState.Connected;
+                te.updateLight();
                 te.connectionTicks = 0;
                 te.sync();
             }
@@ -324,6 +359,7 @@ public class SGBaseBlockEntity extends BlockEntity {
             te.connectionTicks++;
             if (te.connectionTicks >= 20) {
                 te.state = SGState.Idle;
+                te.updateLight();
                 te.removeWormhole();
                 te.numEngagedChevrons = 0;
                 te.dialledAddress = "";
@@ -341,7 +377,8 @@ public class SGBaseBlockEntity extends BlockEntity {
 
     private void updateAnimation() {
         lastRingAngle = ringAngle;
-        
+        updateIrisAnimation();
+
         // Detect state changes for transient animations
         if (state != lastState) {
             if (state == SGState.Transient) {
@@ -417,53 +454,14 @@ public class SGBaseBlockEntity extends BlockEntity {
     }
 
     public void spawnWormhole() {
-        if (level == null || level.isClientSide || !isMerged)
-            return;
-        BlockState baseState = getBlockState();
-        Direction facing = baseState.getValue(SGBaseBlock.FACING);
-        BlockPos center = worldPosition.above(2);
-
-        Direction.Axis axis = (facing == Direction.NORTH || facing == Direction.SOUTH) ? Direction.Axis.Z
-                : Direction.Axis.X;
-
-        for (int r = -1; r <= 1; r++) {
-            for (int u = 0; u <= 2; u++) {
-                BlockPos p = center.above(u - 1);
-                if (facing.getAxis() == Direction.Axis.X) {
-                    p = p.relative(Direction.SOUTH, r);
-                } else {
-                    p = p.relative(Direction.EAST, r);
-                }
-                if (level.isEmptyBlock(p)
-                        || level.getBlockState(p).getBlock() instanceof SGRingBlock) {
-                    level.setBlock(p, ModBlocks.STARGATE_WORMHOLE.get().defaultBlockState()
-                            .setValue(SGWormholeBlock.AXIS, axis), 3);
-                }
-            }
+        if (level != null && !level.isClientSide) {
+            level.playSound(null, worldPosition, ModSounds.STARGATE_WORMHOLE_OPEN.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
         }
-        level.playSound(null, worldPosition, ModSounds.STARGATE_WORMHOLE_OPEN.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
     }
 
     public void removeWormhole() {
-        if (level == null || level.isClientSide || !isMerged)
-            return;
-
-        BlockPos center = worldPosition.above(2);
-        BlockState baseState = getBlockState();
-        Direction facing = baseState.getValue(SGBaseBlock.FACING);
-
-        for (int r = -2; r <= 2; r++) { // Slightly larger area to be safe
-            for (int u = -1; u <= 3; u++) {
-                BlockPos p = center.above(u - 1);
-                if (facing.getAxis() == Direction.Axis.X) {
-                    p = p.relative(Direction.SOUTH, r);
-                } else {
-                    p = p.relative(Direction.EAST, r);
-                }
-                if (level.getBlockState(p).is(ModBlocks.STARGATE_WORMHOLE.get())) {
-                    level.removeBlock(p, false);
-                }
-            }
+        if (level != null && !level.isClientSide) {
+            level.playSound(null, worldPosition, ModSounds.STARGATE_WORMHOLE_CLOSE.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
         }
     }
 
@@ -537,7 +535,7 @@ public class SGBaseBlockEntity extends BlockEntity {
             u[j][0] = u0;
             v[j][0] = v0;
         }
-        
+
         // Wrap-around for polar coordinates
         for (int i = 0; i < 2; i++) {
             grid[i][0] = grid[i][ehGridPolarSize];
@@ -597,11 +595,26 @@ public class SGBaseBlockEntity extends BlockEntity {
         }
 
         // 3. Initiate Dialing
+        SGBaseBlockEntity target = findRemoteStargate(loc);
+        if (target == null) {
+            this.addressError = "No response from terminal";
+            level.playSound(null, worldPosition, ModSounds.STARGATE_ABORT.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
+            sync();
+            return;
+        }
+        if (target.state != SGState.Idle) {
+            this.addressError = "Stargate Busy";
+            level.playSound(null, worldPosition, ModSounds.STARGATE_ABORT.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
+            sync();
+            return;
+        }
+
         this.addressError = null;
         this.dialledAddress = address;
         this.targetDimension = loc.dimension;
         this.targetPos = loc.pos;
         this.state = SGState.Dialling;
+        this.updateLight();
         this.numEngagedChevrons = 0;
         this.dialTicks = 0;
         this.isIncoming = false;
@@ -610,7 +623,6 @@ public class SGBaseBlockEntity extends BlockEntity {
         this.targetResponded = false;
 
         // Notify target Stargate for bidirectional sequence
-        SGBaseBlockEntity target = findRemoteStargate(loc);
         if (target != null) {
             target.onIncomingDialling(this.homeAddress, level.dimension(), worldPosition, address.length());
         }
@@ -650,6 +662,7 @@ public class SGBaseBlockEntity extends BlockEntity {
         this.targetDimension = originDim;
         this.targetPos = originPos;
         this.state = SGState.Dialling;
+        this.updateLight();
         this.numEngagedChevrons = 0;
         this.dialTicks = 0;
         this.isIncoming = true;
@@ -663,15 +676,15 @@ public class SGBaseBlockEntity extends BlockEntity {
             return;
 
         SGState oldState = this.state;
-        this.state = SGState.Disconnecting; 
+        this.state = SGState.Disconnecting;
+        this.updateLight();
         this.connectionTicks = 0;
         this.clientAnimationTicks = 0;
         LOGGER.info("Stargate at {} disconnecting from state {}", worldPosition, oldState);
+        sync();
 
         if (oldState == SGState.Dialling) {
             level.playSound(null, worldPosition, ModSounds.STARGATE_ABORT.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
-        } else {
-            level.playSound(null, worldPosition, ModSounds.STARGATE_WORMHOLE_CLOSE.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
         }
 
         // Notify target Stargate for bidirectional disconnect
@@ -685,12 +698,6 @@ public class SGBaseBlockEntity extends BlockEntity {
         sync();
     }
 
-    private void sync() {
-        setChanged();
-        if (level != null) {
-            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
-        }
-    }
 
     // --- NBT Serialization ---
 
@@ -718,6 +725,8 @@ public class SGBaseBlockEntity extends BlockEntity {
         if (addressError != null)
             tag.putString("addressError", addressError);
         tag.put("inventory", inventory.serializeNBT());
+        tag.putString("irisState", irisState.name());
+        tag.putFloat("irisPhase", irisPhase);
 
         // Connection persistence
         tag.putString("dialledAddress", dialledAddress);
@@ -774,6 +783,10 @@ public class SGBaseBlockEntity extends BlockEntity {
         homeAddress = tag.getString("homeAddress");
         addressError = tag.contains("addressError") ? tag.getString("addressError") : null;
         inventory.deserializeNBT(tag.getCompound("inventory"));
+        if (tag.contains("irisState")) {
+            irisState = IrisState.valueOf(tag.getString("irisState"));
+        }
+        irisPhase = tag.getFloat("irisPhase");
 
         // Connection data
         dialledAddress = tag.getString("dialledAddress");
@@ -827,5 +840,297 @@ public class SGBaseBlockEntity extends BlockEntity {
     public void invalidateCaps() {
         super.invalidateCaps();
         inventoryHolder.invalidate();
+    }
+
+    public void onIrisUpgradeChanged() {
+        if (!hasIrisUpgrade) {
+            irisState = IrisState.OPEN;
+            irisPhase = 1.0f;
+            removeIrisBlocks();
+        }
+        setChanged();
+    }
+
+    public void toggleIris() {
+        if (!hasIrisUpgrade)
+            return;
+        if (irisState == IrisState.OPEN || irisState == IrisState.OPENING) {
+            irisState = IrisState.CLOSING;
+            placeIrisBlocks(); // Start placing immediately
+            if (level != null) {
+                level.playSound(null, worldPosition, ModSounds.STARGATE_IRIS_CLOSE.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
+            }
+        } else {
+            irisState = IrisState.OPENING;
+            if (level != null) {
+                level.playSound(null, worldPosition, ModSounds.STARGATE_IRIS_OPEN.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
+            }
+        }
+        setChanged();
+        if (level != null) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        }
+    }
+
+    private void updateIris() {
+        if (level == null || level.isClientSide)
+            return;
+
+        if (irisState == IrisState.CLOSING) {
+            irisPhase -= 1.0f / IRIS_TIME;
+            if (irisPhase <= 0.0f) {
+                irisPhase = 0.0f;
+                irisState = IrisState.CLOSED;
+            }
+            setChanged();
+            if (level.getGameTime() % 5 == 0) { // Periodic sync during transition
+                level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+            }
+        } else if (irisState == IrisState.OPENING) {
+            irisPhase += 1.0f / IRIS_TIME;
+            if (irisPhase >= 1.0f) {
+                irisPhase = 1.0f;
+                irisState = IrisState.OPEN;
+                removeIrisBlocks(); // Remove only when fully open
+            }
+            setChanged();
+            if (level.getGameTime() % 5 == 0) { // Periodic sync during transition
+                level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+            }
+        }
+    }
+
+
+
+
+    private void placeIrisBlocks() {
+        if (level == null || level.isClientSide)
+            return;
+        BlockPos center = worldPosition.above(2);
+        Direction facing = getBlockState().getValue(SGBaseBlock.FACING);
+        Direction.Axis axis = facing.getAxis();
+
+        for (int r = -1; r <= 1; r++) {
+            for (int u = 0; u <= 2; u++) {
+                BlockPos p = center.above(u - 1);
+                if (facing.getAxis() == Direction.Axis.X) {
+                    p = p.relative(Direction.SOUTH, r);
+                } else {
+                    p = p.relative(Direction.EAST, r);
+                }
+                if (level.isEmptyBlock(p)) {
+                    level.setBlock(p, ModBlocks.STARGATE_IRIS.get().defaultBlockState()
+                            .setValue(SGIrisBlock.AXIS, axis), 3);
+                }
+            }
+        }
+    }
+
+    public void removeIrisBlocks() {
+        if (level == null || level.isClientSide)
+            return;
+        BlockPos center = worldPosition.above(2);
+        Direction facing = getBlockState().getValue(SGBaseBlock.FACING);
+
+        for (int r = -2; r <= 2; r++) {
+            for (int u = -1; u <= 3; u++) {
+                BlockPos p = center.above(u - 1);
+                if (facing.getAxis() == Direction.Axis.X) {
+                    p = p.relative(Direction.SOUTH, r);
+                } else {
+                    p = p.relative(Direction.EAST, r);
+                }
+                if (level.getBlockState(p).is(ModBlocks.STARGATE_IRIS.get())) {
+                    level.removeBlock(p, false);
+                }
+            }
+        }
+    }
+
+    private void checkEntityInteractions() {
+        if (level == null || level.isClientSide || state != SGState.Connected) return;
+
+        Direction facing = getBlockState().getValue(SGBaseBlock.FACING);
+        BlockPos center = worldPosition.above(2);
+        
+        // Define a 4x4 area centered on the event horizon
+        AABB searchBox;
+        if (facing.getAxis() == Direction.Axis.Z) {
+            searchBox = new AABB(center.getX() - 2, center.getY() - 1, center.getZ() - 0.5,
+                               center.getX() + 2, center.getY() + 3, center.getZ() + 0.5);
+        } else {
+            searchBox = new AABB(center.getX() - 0.5, center.getY() - 1, center.getZ() - 2,
+                               center.getX() + 0.5, center.getY() + 3, center.getZ() + 2);
+        }
+
+        List<Entity> entities = level.getEntities(null, searchBox);
+        for (Entity entity : entities) {
+            if (!entity.isAlive() || entity.isRemoved()) continue;
+            
+            if (entity.isPassenger() || entity.isVehicle() || !entity.canChangeDimensions()) continue;
+            if (entity.tickCount < 10) continue; // Prevent instant re-entry
+
+            // Check if entity is actually touching the "plane" of the gate
+            double distToPlane = 0;
+            if (facing.getAxis() == Direction.Axis.Z) {
+                distToPlane = Math.abs(entity.getZ() - (center.getZ() + 0.5));
+            } else {
+                distToPlane = Math.abs(entity.getX() - (center.getX() + 0.5));
+            }
+
+            if (distToPlane < 0.3) {
+                if (irisPhase >= 0.9f) { // Only TP if Iris is fully open
+                    teleportEntity(entity);
+                }
+                // If Iris is closed, we do nothing. The physical blocks will stop the entity.
+            }
+        }
+    }
+
+    private void interceptEntity(Entity entity) {
+        if (!entity.isAlive() || entity.isRemoved()) return;
+
+        LOGGER.info("Entity {} intercepted by Iris at {}", entity.getName().getString(), worldPosition);
+        level.playSound(null, worldPosition, ModSounds.STARGATE_IRIS_HIT.get(), SoundSource.BLOCKS, 0.5f, 1.0f);
+        
+        if (entity instanceof net.minecraft.world.entity.LivingEntity living) {
+            living.hurt(level.damageSources().genericKill(), Float.MAX_VALUE);
+            living.kill(); 
+        } else {
+            entity.discard();
+        }
+        
+        // Force sync to prevent "frozen" state
+        if (level != null && !level.isClientSide) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        }
+    }
+
+    private void teleportEntity(Entity entity) {
+        if (targetPos == null || targetDimension == null || level.isClientSide) return;
+
+        MinecraftServer server = level.getServer();
+        if (server == null) return;
+        ServerLevel destLevel = server.getLevel(targetDimension);
+        if (destLevel == null) return;
+
+        // Check target Iris state before TP
+        if (destLevel.getBlockEntity(targetPos) instanceof SGBaseBlockEntity targetBE) {
+            if (targetBE.irisPhase < 0.9f) {
+                interceptEntity(entity); // Desintegrate incoming entity
+                // Also play sound at destination
+                destLevel.playSound(null, targetPos, ModSounds.STARGATE_IRIS_HIT.get(), SoundSource.BLOCKS, 0.5f, 1.0f);
+                return;
+            }
+        }
+
+        destLevel.getChunkSource().addRegionTicket(TicketType.PORTAL, new ChunkPos(targetPos), 3, targetPos);
+
+        Direction destFacing = Direction.NORTH;
+        BlockState destState = destLevel.getBlockState(targetPos);
+        if (destState.getBlock() instanceof SGBaseBlock) {
+            destFacing = destState.getValue(SGBaseBlock.FACING);
+        }
+
+        final double destX = targetPos.getX() + 0.5 + destFacing.getStepX() * 1.5;
+        final double destY = targetPos.getY() + 1.15;
+        final double destZ = targetPos.getZ() + 0.5 + destFacing.getStepZ() * 1.5;
+
+        Direction enterFacing = getBlockState().getValue(SGBaseBlock.FACING);
+        float deltaYaw = destFacing.toYRot() - enterFacing.toYRot() + 180.0f;
+
+        float targetYaw = entity.getYRot() + deltaYaw;
+        float targetPitch = entity.getXRot();
+
+        final String targetDim = targetDimension.location().toString();
+        final String uuid = entity.getStringUUID();
+        final String cmd = String.format(Locale.ROOT, "execute in %s run teleport %s %.3f %.3f %.3f %.3f %.3f",
+                targetDim, uuid, destX, destY, destZ, targetYaw, targetPitch);
+
+        server.execute(() -> {
+            CommandSourceStack source = server.createCommandSourceStack().withPermission(4).withSuppressedOutput();
+            server.getCommands().performPrefixedCommand(source, cmd);
+        });
+
+        entity.setPortalCooldown();
+        entity.setDeltaMovement(Vec3.ZERO);
+        entity.resetFallDistance();
+    }
+
+    private void updateIrisAnimation() {
+        if (irisState == IrisState.CLOSING) {
+            irisPhase -= 1.0f / IRIS_TIME;
+            if (irisPhase <= 0.0f) {
+                irisPhase = 0.0f;
+                irisState = IrisState.CLOSED;
+            }
+        } else if (irisState == IrisState.OPENING) {
+            irisPhase += 1.0f / IRIS_TIME;
+            if (irisPhase >= 1.0f) {
+                irisPhase = 1.0f;
+                irisState = IrisState.OPEN;
+                removeIrisBlocks(); // Remove only when fully open
+            }
+        }
+    }
+
+    private void performKawooshPhysicalEffects() {
+        if (level == null || level.isClientSide || irisPhase < 1.0f)
+            return;
+
+        BlockState baseState = level.getBlockState(worldPosition);
+        if (!(baseState.getBlock() instanceof SGBaseBlock))
+            return;
+
+        Direction facing = baseState.getValue(SGBaseBlock.FACING);
+        Direction right = facing.getClockWise();
+        BlockPos centerPos = worldPosition.above(2);
+
+        // 1. Vaporize Blocks in front
+        int reach = 4;
+        for (int d = 1; d <= reach; d++) {
+            for (int h = -1; h <= 1; h++) {
+                for (int w = -1; w <= 1; w++) {
+                    BlockPos target = centerPos.relative(facing, d).relative(right, w).above(h);
+                    BlockState targetState = level.getBlockState(target);
+
+                    // Skip air, bedrock and stargate blocks
+                    if (!targetState.isAir() && targetState.getDestroySpeed(level, target) >= 0) {
+                        if (!(targetState.getBlock() instanceof SGBaseBlock)
+                                && !(targetState.getBlock() instanceof SGRingBlock)) {
+                            level.setBlockAndUpdate(target, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Kill Entities in front
+        // Create an AABB that covers the 3x3 area and extends 4 blocks forward
+        AABB kawooshBox = new AABB(centerPos).inflate(1.5);
+        // Project it forward
+        double offX = facing.getStepX() * 2.0;
+        double offY = facing.getStepY() * 2.0;
+        double offZ = facing.getStepZ() * 2.0;
+        kawooshBox = kawooshBox.move(offX, offY, offZ).expandTowards(offX, offY, offZ);
+
+        List<Entity> entities = level.getEntitiesOfClass(Entity.class, kawooshBox);
+        for (Entity entity : entities) {
+            entity.hurt(level.damageSources().genericKill(), 10000.0f);
+        }
+    }
+
+    private void updateLight() {
+        if (level != null && !level.isClientSide && isMerged) {
+            boolean lit = (state == SGState.Transient || state == SGState.Connected || state == SGState.Disconnecting);
+            SGBaseBlock.updateStructureLight(level, worldPosition, lit);
+        }
+    }
+
+    private void sync() {
+        setChanged();
+        if (level != null && !level.isClientSide) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        }
     }
 }

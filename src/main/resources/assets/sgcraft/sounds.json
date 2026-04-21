@@ -1,15 +1,15 @@
 {
   "stargate.ring_start": {
     "category": "block",
-    "sounds": ["sgcraft:sg_dial7"]
+    "sounds": ["sgcraft:sg_dial"]
   },
   "stargate.ring_stop": {
     "category": "block",
-    "sounds": ["sgcraft:sg_dial7"]
+    "sounds": ["sgcraft:sg_dial"]
   },
   "stargate.chevron_engage": {
     "category": "block",
-    "sounds": ["sgcraft:sg_dial7"]
+    "sounds": ["sgcraft:sg_dial"]
   },
   "stargate.wormhole_open": {
     "category": "block",
@@ -22,5 +22,17 @@
   "stargate.abort": {
     "category": "block",
     "sounds": ["sgcraft:sg_abort"]
+  },
+  "stargate.iris_open": {
+    "category": "block",
+    "sounds": ["sgcraft:iris_open"]
+  },
+  "stargate.iris_close": {
+    "category": "block",
+    "sounds": ["sgcraft:iris_close"]
+  },
+  "stargate.iris_hit": {
+    "category": "block",
+    "sounds": ["sgcraft:iris_hit"]
   }
 }

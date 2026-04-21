@@ -4,7 +4,6 @@ import gcewing.sgcraft.SGCraft;
 import gcewing.sgcraft.block.DHDBlock;
 import gcewing.sgcraft.block.SGBaseBlock;
 import gcewing.sgcraft.block.SGRingBlock;
-import gcewing.sgcraft.block.SGWormholeBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -47,6 +46,7 @@ public class ModBlocks {
                     .strength(3.0F, 3.0F)
                     .sound(SoundType.STONE)
                     .noOcclusion()
+                    .lightLevel(state -> state.getValue(SGRingBlock.LIT) ? 15 : 0)
                     .requiresCorrectToolForDrops(),
                     false // not chevron
             ));
@@ -57,6 +57,7 @@ public class ModBlocks {
                     .strength(3.0F, 3.0F)
                     .sound(SoundType.STONE)
                     .noOcclusion()
+                    .lightLevel(state -> state.getValue(SGRingBlock.LIT) ? 15 : 0)
                     .requiresCorrectToolForDrops(),
                     true // is chevron
             ));
@@ -67,6 +68,7 @@ public class ModBlocks {
                     .strength(3.0F, 3.0F)
                     .sound(SoundType.STONE)
                     .noOcclusion()
+                    .lightLevel(state -> state.getValue(SGBaseBlock.LIT) ? 15 : 0)
                     .requiresCorrectToolForDrops()
             ));
 
@@ -79,13 +81,11 @@ public class ModBlocks {
                     .requiresCorrectToolForDrops()
             ));
 
-    public static final RegistryObject<Block> STARGATE_WORMHOLE = BLOCKS.register("stargate_wormhole",
-            () -> new SGWormholeBlock(BlockBehaviour.Properties.of()
-                    .mapColor(MapColor.COLOR_BLUE)
-                    .strength(-1.0F, 3600000.0F)
-                    .noCollission()
+    public static final RegistryObject<Block> STARGATE_IRIS = BLOCKS.register("stargate_iris",
+            () -> new gcewing.sgcraft.block.SGIrisBlock(BlockBehaviour.Properties.of()
+                    .mapColor(net.minecraft.world.level.material.MapColor.COLOR_GRAY)
+                    .strength(-1.0F, 3600000.0F) // Unbreakable
                     .noOcclusion()
-                    .lightLevel((state) -> 15)
                     .pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK)
             ));
 }

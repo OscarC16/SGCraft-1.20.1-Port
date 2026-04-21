@@ -28,6 +28,7 @@ public class SGRingBlock extends BaseEntityBlock {
 
     /** Blockstate property: when true, the block model is invisible (merged into stargate) */
     public static final BooleanProperty MERGED = BooleanProperty.create("merged");
+    public static final BooleanProperty LIT = BooleanProperty.create("lit");
 
     /** Whether this is a chevron variant (true) or a plain ring (false) */
     private final boolean isChevron;
@@ -35,7 +36,9 @@ public class SGRingBlock extends BaseEntityBlock {
     public SGRingBlock(BlockBehaviour.Properties properties, boolean isChevron) {
         super(properties);
         this.isChevron = isChevron;
-        this.registerDefaultState(this.stateDefinition.any().setValue(MERGED, false));
+        this.registerDefaultState(this.stateDefinition.any()
+                .setValue(MERGED, false)
+                .setValue(LIT, false));
     }
 
     public boolean isChevron() {
@@ -44,7 +47,7 @@ public class SGRingBlock extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(MERGED);
+        builder.add(MERGED, LIT);
     }
 
     @Nullable
@@ -128,6 +131,10 @@ public class SGRingBlock extends BaseEntityBlock {
             if (!level.isClientSide) {
                 BlockEntity be = level.getBlockEntity(pos);
                 if (be instanceof SGRingBlockEntity ringBE && ringBE.isMerged) {
+                    BlockEntity bbe = level.getBlockEntity(ringBE.basePos);
+                    if (bbe instanceof gcewing.sgcraft.block.entity.SGBaseBlockEntity sbe) {
+                        sbe.removeIrisBlocks();
+                    }
                     Block baseBlock = level.getBlockState(ringBE.basePos).getBlock();
                     if (baseBlock instanceof SGBaseBlock sgBase) {
                         sgBase.unmerge(level, ringBE.basePos);

@@ -59,6 +59,7 @@ public class SGBaseBlock extends BaseEntityBlock {
 
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
     public static final BooleanProperty MERGED = BooleanProperty.create("merged");
+    public static final BooleanProperty LIT = BooleanProperty.create("lit");
 
     // Multiblock pattern: pattern[row][col] where row 0 is the base row
     // Indexed as pattern[4-j][2+i] in the original, here stored directly as
@@ -75,7 +76,8 @@ public class SGBaseBlock extends BaseEntityBlock {
         super(properties);
         this.registerDefaultState(this.stateDefinition.any()
                 .setValue(FACING, Direction.NORTH)
-                .setValue(MERGED, false));
+                .setValue(MERGED, false)
+                .setValue(LIT, false));
     }
 
     private static final VoxelShape BASE_SHAPE = Block.box(0, 0, 0, 16, 16, 16);
@@ -92,7 +94,7 @@ public class SGBaseBlock extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, MERGED);
+        builder.add(FACING, MERGED, LIT);
     }
 
     @Override
@@ -156,6 +158,8 @@ public class SGBaseBlock extends BaseEntityBlock {
                         dhd.clearLinkToStargate();
                     }
                 }
+                // 1.5 Cleanup Iris blocks
+                baseBE.removeIrisBlocks();
                 // 2. Unmerge structure
                 unmerge(level, pos);
                 // 3. Drop inventory
@@ -198,17 +202,33 @@ public class SGBaseBlock extends BaseEntityBlock {
 
             if (be instanceof SGBaseBlockEntity baseBE && baseBE.isMerged) {
                 // Handle Chevron Upgrade
-                if (stack.is(gcewing.sgcraft.registry.ModItems.SG_CHEVRON_UPGRADE.get().asItem())) {
+                if (stack.is(gcewing.sgcraft.registry.ModItems.SG_CHEVRON_UPGRADE.get())) {
                     if (baseBE.inventory.getStackInSlot(SGBaseBlockEntity.SLOT_CHEVRON_UPGRADE).isEmpty()) {
                         baseBE.inventory.setStackInSlot(SGBaseBlockEntity.SLOT_CHEVRON_UPGRADE, stack.split(1));
-                        baseBE.hasChevronUpgrade = true; // Sync boolean for convenience
+                        baseBE.hasChevronUpgrade = true;
                         level.playSound(null, pos, net.minecraft.sounds.SoundEvents.NETHERITE_BLOCK_PLACE,
                                 net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
                         level.sendBlockUpdated(pos, state, state, 3);
                         return InteractionResult.SUCCESS;
-                    } else {
-                        return InteractionResult.CONSUME;
                     }
+                }
+
+                // Handle Iris Upgrade
+                if (stack.is(gcewing.sgcraft.registry.ModItems.SG_IRIS_UPGRADE.get())) {
+                    if (baseBE.inventory.getStackInSlot(SGBaseBlockEntity.SLOT_IRIS_UPGRADE).isEmpty()) {
+                        baseBE.inventory.setStackInSlot(SGBaseBlockEntity.SLOT_IRIS_UPGRADE, stack.split(1));
+                        baseBE.hasIrisUpgrade = true;
+                        level.playSound(null, pos, net.minecraft.sounds.SoundEvents.NETHERITE_BLOCK_PLACE,
+                                net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+                        level.sendBlockUpdated(pos, state, state, 3);
+                        return InteractionResult.SUCCESS;
+                    }
+                }
+
+                // Toggle Iris (Sneak + Right click with empty hand)
+                if (player.isShiftKeyDown() && stack.isEmpty() && baseBE.hasIrisUpgrade) {
+                    baseBE.toggleIris();
+                    return InteractionResult.SUCCESS;
                 }
 
                 // Open GUI if not holding an upgrade
@@ -303,7 +323,7 @@ public class SGBaseBlock extends BaseEntityBlock {
      * Convert local coordinates (i=lateral, j=vertical) to world position
      * based on the facing direction of the base block.
      */
-    private BlockPos getWorldPos(BlockPos basePos, Direction facing, int i, int j) {
+    BlockPos getWorldPos(BlockPos basePos, Direction facing, int i, int j) {
         return switch (facing) {
             case NORTH -> basePos.offset(-i, j, 0);
             case SOUTH -> basePos.offset(i, j, 0);
@@ -369,11 +389,42 @@ public class SGBaseBlock extends BaseEntityBlock {
         }
     }
 
-    @Nullable
-    private SGBaseBlockEntity getBlockEntity(Level level, BlockPos pos) {
+    private SGBaseBlockEntity getBlockEntity(BlockGetter level, BlockPos pos) {
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof SGBaseBlockEntity)
             return (SGBaseBlockEntity) be;
         return null;
+    }
+
+
+    /**
+     * Update the LIT property of all blocks in the Stargate structure.
+     */
+    public static void updateStructureLight(Level level, BlockPos basePos, boolean lit) {
+        BlockState state = level.getBlockState(basePos);
+        if (!(state.getBlock() instanceof SGBaseBlock baseBlock))
+            return;
+
+        // 1. Update Base Block
+        if (state.getValue(LIT) != lit) {
+            level.setBlock(basePos, state.setValue(LIT, lit), 3);
+        }
+
+        // 2. Update Ring/Chevron Blocks
+        Direction facing = state.getValue(FACING);
+        for (int i = -2; i <= 2; i++) {
+            for (int j = 0; j <= 4; j++) {
+                if (i == 0 && j == 0)
+                    continue;
+
+                if (PATTERN[j][i + 2] != 0) {
+                    BlockPos ringPos = baseBlock.getWorldPos(basePos, facing, i, j);
+                    BlockState rs = level.getBlockState(ringPos);
+                    if (rs.hasProperty(SGRingBlock.LIT) && rs.getValue(SGRingBlock.LIT) != lit) {
+                        level.setBlock(ringPos, rs.setValue(SGRingBlock.LIT, lit), 3);
+                    }
+                }
+            }
+        }
     }
 }

@@ -22,6 +22,9 @@ public class ModSounds {
     public static final RegistryObject<SoundEvent> STARGATE_WORMHOLE_CLOSE = registerSound("stargate.wormhole_close");
     public static final RegistryObject<SoundEvent> STARGATE_WORMHOLE_IDLE = registerSound("stargate.wormhole_idle");
     public static final RegistryObject<SoundEvent> STARGATE_ABORT = registerSound("stargate.abort");
+    public static final RegistryObject<SoundEvent> STARGATE_IRIS_OPEN = registerSound("stargate.iris_open");
+    public static final RegistryObject<SoundEvent> STARGATE_IRIS_CLOSE = registerSound("stargate.iris_close");
+    public static final RegistryObject<SoundEvent> STARGATE_IRIS_HIT = registerSound("stargate.iris_hit");
 
     private static RegistryObject<SoundEvent> registerSound(String name) {
         return SOUND_EVENTS.register(name, () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(SGCraft.MODID, name)));

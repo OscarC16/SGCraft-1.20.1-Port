@@ -44,6 +44,10 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
             "textures/tileentity/stargate.png");
     private static final ResourceLocation EVENT_HORIZON_TEXTURE = new ResourceLocation(SGCraft.MODID,
             "textures/tileentity/eventhorizon.png");
+    private static final ResourceLocation IRIS_TEXTURE = new ResourceLocation(SGCraft.MODID,
+            "textures/tileentity/iris.png");
+
+    private static final int NUM_IRIS_BLADES = 12;
 
     // Ring geometry constants (from original)
     static final int NUM_RING_SEGMENTS = 32;
@@ -83,7 +87,6 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
     static final double[] SIN = new double[NUM_RING_SEGMENTS + 1];
     static final double[] COS = new double[NUM_RING_SEGMENTS + 1];
 
-
     static {
         for (int i = 0; i <= NUM_RING_SEGMENTS; i++) {
             double a = 2 * Math.PI * i / NUM_RING_SEGMENTS;
@@ -111,15 +114,15 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
         Direction facing = state.getValue(SGBaseBlock.FACING);
 
         poseStack.pushPose();
- 
+
         // Move to center of stargate (base block + 2.5 blocks up, centered on X/Z)
         poseStack.translate(0.5, 2.5, 0.5);
- 
+
         // Render camouflage blocks in the base row (World Aligned)
         // We call this BEFORE any Stargate rotation to keep block textures
         // world-aligned
         renderCamouflage(te, poseStack, buffer, combinedLight, combinedOverlay, facing);
- 
+
         // Rotate to match the facing direction of the base block
         // The ring plane is perpendicular to the facing direction
         // Fixed: Adjusted rotation angles to align ring front with base block front
@@ -131,16 +134,18 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
             default -> 0f;
         };
         poseStack.mulPose(Axis.YP.rotationDegrees(rotation));
- 
+
         // Render outer ring
         VertexConsumer vc = buffer.getBuffer(RenderType.entityCutoutNoCull(STARGATE_TEXTURE));
-        renderRing(vc, poseStack.last().pose(), poseStack.last().normal(), combinedLight, RING_MID_RADIUS - RING_OVERLAP, RING_OUTER_RADIUS, true,
+        renderRing(vc, poseStack.last().pose(), poseStack.last().normal(), combinedLight,
+                RING_MID_RADIUS - RING_OVERLAP, RING_OUTER_RADIUS, true,
                 RING_Z_OFFSET);
 
         // Render inner ring (with rotation animation)
         poseStack.pushPose();
         poseStack.mulPose(Axis.ZP.rotationDegrees((float) te.ringAngle));
-        renderRing(vc, poseStack.last().pose(), poseStack.last().normal(), combinedLight, RING_INNER_RADIUS, RING_MID_RADIUS, false, 0);
+        renderRing(vc, poseStack.last().pose(), poseStack.last().normal(), combinedLight, RING_INNER_RADIUS,
+                RING_MID_RADIUS, false, 0);
         poseStack.popPose();
 
         // Render chevrons
@@ -149,7 +154,12 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
         // Render Event Horizon
         if (te.state == SGState.Transient || te.state == SGState.Connected
                 || te.state == SGState.Disconnecting) {
-            renderEventHorizon(te, poseStack, buffer, combinedLight);
+            renderEventHorizon(te, poseStack, buffer, combinedLight, false); // Front
+            renderEventHorizon(te, poseStack, buffer, combinedLight, true);  // Back
+        }
+
+        if (te.hasIrisUpgrade) {
+            renderIris(te, poseStack, buffer, combinedLight);
         }
 
         poseStack.popPose();
@@ -195,15 +205,14 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
             BakedModel model = dispatcher.getBlockModel(state);
             long seed = state.getSeed(worldPos);
             RandomSource random = RandomSource.create(seed);
-            
+
             for (net.minecraft.client.renderer.RenderType rt : model.getRenderTypes(state, random, ModelData.EMPTY)) {
                 VertexConsumer vc = buffer.getBuffer(rt);
                 TintedVertexConsumer tintedVC = new TintedVertexConsumer(vc, 1.0f);
-                
+
                 dispatcher.getModelRenderer().tesselateBlock(
-                    te.getLevel(), model, state, worldPos, poseStack, tintedVC,
-                    true, random, seed, overlay, ModelData.EMPTY, rt
-                );
+                        te.getLevel(), model, state, worldPos, poseStack, tintedVC,
+                        true, random, seed, overlay, ModelData.EMPTY, rt);
             }
 
             poseStack.popPose();
@@ -236,8 +245,9 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
             double c2 = COS[i + 1], s2 = SIN[i + 1];
 
             // Sides and Back
-            u0 = sideU0; v0 = sideV0;
-            
+            u0 = sideU0;
+            v0 = sideV0;
+
             // Outer surface
             if (isOuter) {
                 quad(vc, pose, normalMat, light, (float) c1, (float) s1, 0,
@@ -264,7 +274,8 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
                     r2 * c1, r2 * s1, -z, 0, 0);
 
             // Front face
-            u0 = frontU0; v0 = frontV0;
+            u0 = frontU0;
+            v0 = frontV0;
             if (isOuter) {
                 quad(vc, pose, normalMat, light, 0, 0, 1,
                         r1 * c1, r1 * s1, z, 16, 16,
@@ -294,14 +305,15 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
 
         for (int i = 0; i < 9; i++) {
             // Hide bottom chevrons if not upgraded (Indices 0 and 8)
-            if ((i == 0 || i == 8) && !hasUpgrade) continue;
+            if ((i == 0 || i == 8) && !hasUpgrade)
+                continue;
 
             float engageAmount = te.chevronEngageAmount[i];
 
             poseStack.pushPose();
             // Rotate to chevron position: 90 degrees (top) minus offset from top
             // Indices: 4=90(top), 3=130, 2=170, 1=210, 0=250(bottom-left)
-            //          5=50, 6=10, 7=-30, 8=-70(bottom-right)
+            // 5=50, 6=10, 7=-30, 8=-70(bottom-right)
             poseStack.mulPose(Axis.ZP.rotationDegrees(90 - (i - 4) * a));
 
             // Move chevron inward based on engage amount (approx 0.125 blocks)
@@ -493,7 +505,7 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
 
     /**
      * A VertexConsumer wrapper that applies a brightness factor to all colors.
-     * This allows us to use the standard Minecraft renderer (with AO) while 
+     * This allows us to use the standard Minecraft renderer (with AO) while
      * fine-tuning the tone to match the environment.
      */
     private static class TintedVertexConsumer implements VertexConsumer {
@@ -506,93 +518,129 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
         }
 
         @Override
-        public void putBulkData(PoseStack.Pose pose, BakedQuad quad, float r, float g, float b, float a, int light, int overlay, boolean applyLighting) {
+        public void putBulkData(PoseStack.Pose pose, BakedQuad quad, float r, float g, float b, float a, int light,
+                int overlay, boolean applyLighting) {
             parent.putBulkData(pose, quad, r * factor, g * factor, b * factor, a, light, overlay, applyLighting);
         }
 
         @Override
-        public void putBulkData(PoseStack.Pose pose, BakedQuad quad, float[] brightness, float r, float g, float b, float a, int[] lightmap, int overlay, boolean applyLighting) {
+        public void putBulkData(PoseStack.Pose pose, BakedQuad quad, float[] brightness, float r, float g, float b,
+                float a, int[] lightmap, int overlay, boolean applyLighting) {
             float rf = r * factor;
             float gf = g * factor;
             float bf = b * factor;
             parent.putBulkData(pose, quad, brightness, rf, gf, bf, a, lightmap, overlay, applyLighting);
         }
 
-        @Override public VertexConsumer vertex(double x, double y, double z) { return parent.vertex(x, y, z); }
-        @Override public VertexConsumer color(int r, int g, int b, int a) { return parent.color((int)(r * factor), (int)(g * factor), (int)(b * factor), a); }
-        @Override public VertexConsumer uv(float u, float v) { return parent.uv(u, v); }
-        @Override public VertexConsumer overlayCoords(int u, int v) { return parent.overlayCoords(u, v); }
-        @Override public VertexConsumer uv2(int u, int v) { return parent.uv2(u, v); }
-        @Override public VertexConsumer normal(float x, float y, float z) { return parent.normal(x, y, z); }
-        @Override public void endVertex() { parent.endVertex(); }
-        @Override public void defaultColor(int r, int g, int b, int a) { parent.defaultColor((int)(r * factor), (int)(g * factor), (int)(b * factor), a); }
-        @Override public void unsetDefaultColor() { parent.unsetDefaultColor(); }
+        @Override
+        public VertexConsumer vertex(double x, double y, double z) {
+            return parent.vertex(x, y, z);
+        }
+
+        @Override
+        public VertexConsumer color(int r, int g, int b, int a) {
+            return parent.color((int) (r * factor), (int) (g * factor), (int) (b * factor), a);
+        }
+
+        @Override
+        public VertexConsumer uv(float u, float v) {
+            return parent.uv(u, v);
+        }
+
+        @Override
+        public VertexConsumer overlayCoords(int u, int v) {
+            return parent.overlayCoords(u, v);
+        }
+
+        @Override
+        public VertexConsumer uv2(int u, int v) {
+            return parent.uv2(u, v);
+        }
+
+        @Override
+        public VertexConsumer normal(float x, float y, float z) {
+            return parent.normal(x, y, z);
+        }
+
+        @Override
+        public void endVertex() {
+            parent.endVertex();
+        }
+
+        @Override
+        public void defaultColor(int r, int g, int b, int a) {
+            parent.defaultColor((int) (r * factor), (int) (g * factor), (int) (b * factor), a);
+        }
+
+        @Override
+        public void unsetDefaultColor() {
+            parent.unsetDefaultColor();
+        }
     }
 
-    private void renderEventHorizon(SGBaseBlockEntity te, PoseStack poseStack, MultiBufferSource buffer, int combinedLight) {
-        VertexConsumer vc = buffer.getBuffer(RenderType.entityTranslucent(EVENT_HORIZON_TEXTURE));
+    private void renderEventHorizon(SGBaseBlockEntity te, PoseStack poseStack, MultiBufferSource buffer,
+            int combinedLight, boolean back) {
+        poseStack.pushPose();
+        if (back) {
+            poseStack.mulPose(Axis.YP.rotationDegrees(180));
+        }
+        VertexConsumer vc = buffer.getBuffer(RenderType.entitySolid(EVENT_HORIZON_TEXTURE));
         Matrix4f pose = poseStack.last().pose();
         Matrix3f normal = poseStack.last().normal();
-        
-        double ehBandWidth = RING_INNER_RADIUS / SGBaseBlockEntity.ehGridRadialSize;
+
+        final double rclip = 2.5;
+        final double ehBandWidth = RING_INNER_RADIUS / SGBaseBlockEntity.ehGridRadialSize;
         double[][] grid = te.getEventHorizonGrid()[0];
-        double rclip = 2.5; // Iris aperture clip not fully implemented yet, use 2.5 (outer radius)
+        boolean flat = te.irisPhase < 1.0f;
 
         // Quads for the rings > 0
         for (int i = 1; i < SGBaseBlockEntity.ehGridRadialSize; i++) {
             for (int j = 0; j < SGBaseBlockEntity.ehGridPolarSize; j++) {
-                ehVertexQuad(vc, pose, normal, grid, i, j, rclip, ehBandWidth, combinedLight);
-                ehVertexQuad(vc, pose, normal, grid, i + 1, j, rclip, ehBandWidth, combinedLight);
-                ehVertexQuad(vc, pose, normal, grid, i + 1, j + 1, rclip, ehBandWidth, combinedLight);
-                ehVertexQuad(vc, pose, normal, grid, i, j + 1, rclip, ehBandWidth, combinedLight);
+                ehVertexQuad(vc, pose, normal, grid, i, j, rclip, ehBandWidth, combinedLight, flat);
+                ehVertexQuad(vc, pose, normal, grid, i + 1, j, rclip, ehBandWidth, combinedLight, flat);
+                ehVertexQuad(vc, pose, normal, grid, i + 1, j + 1, rclip, ehBandWidth, combinedLight, flat);
+                ehVertexQuad(vc, pose, normal, grid, i, j + 1, rclip, ehBandWidth, combinedLight, flat);
             }
         }
 
-        // Center Fan (Triangles simulated as Quads)
-        double zCenter = ehClip(grid[1][0], 0, rclip);
+        // Center Fan
+        double zCenter = flat ? 0 : ehClip(grid[1][0], 0, rclip);
         for (int j = 0; j < SGBaseBlockEntity.ehGridPolarSize; j++) {
-            // First vertex of the "triangle" at center
-            vc.vertex(pose, 0, 0, (float) zCenter)
-              .color(255, 255, 255, 255)
-              .uv(0, 0) // Center of texture in original mapping
-              .overlayCoords(OverlayTexture.NO_OVERLAY)
-              .uv2(combinedLight)
-              .normal(normal, 0, 0, 1)
-              .endVertex();
-            
-            // Second vertex at center (to make it a quad)
-            vc.vertex(pose, 0, 0, (float) zCenter)
-              .color(255, 255, 255, 255)
-              .uv(0, 0)
-              .overlayCoords(OverlayTexture.NO_OVERLAY)
-              .uv2(combinedLight)
-              .normal(normal, 0, 0, 1)
-              .endVertex();
-            
-            // Outer vertices
-            ehVertexQuad(vc, pose, normal, grid, 1, j + 1, rclip, ehBandWidth, combinedLight);
-            ehVertexQuad(vc, pose, normal, grid, 1, j, rclip, ehBandWidth, combinedLight);
+            ehVertexQuad(vc, pose, normal, grid, 1, j, rclip, ehBandWidth, combinedLight, flat);
+            ehVertexQuad(vc, pose, normal, grid, 1, j + 1, rclip, ehBandWidth, combinedLight, flat);
+            for (int k = 0; k < 2; k++) {
+                vc.vertex(pose, 0, 0, (float) zCenter)
+                        .color(255, 255, 255, 255)
+                        .uv(0, 0)
+                        .overlayCoords(OverlayTexture.NO_OVERLAY)
+                        .uv2(combinedLight)
+                        .normal(normal, 0, 0, 1)
+                        .endVertex();
+            }
         }
+        poseStack.popPose();
     }
 
-    private void ehVertexQuad(VertexConsumer vc, Matrix4f pose, Matrix3f normal, double[][] grid, int i, int j, double rclip, double ehBandWidth, int combinedLight) {
+    private void ehVertexQuad(VertexConsumer vc, Matrix4f pose, Matrix3f normal, double[][] grid, int i, int j,
+            double rclip, double ehBandWidth, int combinedLight, boolean flat) {
         double r = i * ehBandWidth;
         // Normalize j index to wrap around SIN/COS arrays
         int jj = j % SGBaseBlockEntity.ehGridPolarSize;
-        if (jj < 0) jj += SGBaseBlockEntity.ehGridPolarSize;
-        
+        if (jj < 0)
+            jj += SGBaseBlockEntity.ehGridPolarSize;
+
         double x = r * COS[jj];
         double y = r * SIN[jj];
-        double z = ehClip(grid[j + 1][i], r, rclip);
-        
+        double z = flat ? 0 : ehClip(grid[j + 1][i], r, rclip);
+
         vc.vertex(pose, (float) x, (float) y, (float) z)
-          .color(255, 255, 255, 255)
-          // Reverting to raw x, y for UVs to restore original texture tiling/scale
-          .uv((float) x, (float) y)
-          .overlayCoords(OverlayTexture.NO_OVERLAY)
-          .uv2(combinedLight)
-          .normal(normal, 0, 0, 1)
-          .endVertex();
+                .color(255, 255, 255, 255)
+                // Reverting to raw x, y for UVs to restore original texture tiling/scale
+                .uv((float) x, (float) y)
+                .overlayCoords(OverlayTexture.NO_OVERLAY)
+                .uv2(combinedLight)
+                .normal(normal, 0, 0, 1)
+                .endVertex();
     }
 
     private double ehClip(double z, double r, double rclip) {
@@ -600,5 +648,67 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
             z = Math.min(z, 0);
         }
         return z;
+    }
+
+    private void renderIris(SGBaseBlockEntity te, PoseStack poseStack, MultiBufferSource buffer, int light) {
+        VertexConsumer vc = buffer.getBuffer(RenderType.entityCutout(IRIS_TEXTURE));
+
+        // 0.0 is closed, 1.0 is open. original a was 0.8 * aperture
+        // Animation Easing:
+        // Opening (0->1): Slow start, fast end
+        // Closing (1->0): Fast start, slow end
+        float t = te.irisPhase;
+        double aperture = t * t;
+        for (int i = 0; i < NUM_IRIS_BLADES; i++) {
+            renderIrisBlade(vc, poseStack, aperture, light, i, NUM_IRIS_BLADES);
+        }
+    }
+
+    private void renderIrisBlade(VertexConsumer vc, PoseStack poseStack, double aperture, int light, int i, int n) {
+        double angleStep = 360.0 / n;
+        double rad = Math.PI / 180.0;
+
+        // Points on the ring (Fixed Radius 2.3)
+        float p2x = (float) (2.3 * Math.cos(rad * (angleStep * i)));
+        float p2y = (float) (2.3 * Math.sin(rad * (angleStep * i)));
+        float p3x = (float) (2.3 * Math.cos(rad * (angleStep * (i + 0.5))));
+        float p3y = (float) (2.3 * Math.sin(rad * (angleStep * (i + 0.5))));
+        float p4x = (float) (2.3 * Math.cos(rad * (angleStep * (i + 1))));
+        float p4y = (float) (2.3 * Math.sin(rad * (angleStep * (i + 1))));
+
+        // Matrix Sliding Math: Solve for P1 such that it lies on the segment [P1_next,
+        // P2_next]
+        // k is the "openness" factor. We scale aperture to reach the desired radius
+        // (2.1)
+        double k = aperture * (2.1 / 2.3);
+        double cosA = Math.cos(rad * angleStep);
+        double sinA = Math.sin(rad * angleStep);
+
+        // M = I - (1-k)R
+        double mC = (1 - (1 - k) * cosA);
+        double mS = (1 - k) * sinA;
+        double mDet = mC * mC + mS * mS;
+
+        // Inverse matrix to find P1 globally
+        float p1x = (float) ((k / mDet) * (mC * p4x - mS * p4y));
+        float p1y = (float) ((k / mDet) * (mS * p4x + mC * p4y));
+
+        // Render parameters
+        double z0 = 0.01;
+        double z1 = 0.1;
+        Matrix4f pose = poseStack.last().pose();
+        Matrix3f normal = poseStack.last().normal();
+
+        // Front Face (CCW) - Pure white for texture
+        vertex(vc, pose, normal, light, 0, 0, 1, 255, 255, 255, p1x, p1y, z1, 0, 0);
+        vertex(vc, pose, normal, light, 0, 0, 1, 255, 255, 255, p2x, p2y, z0, 0, 25);
+        vertex(vc, pose, normal, light, 0, 0, 1, 255, 255, 255, p3x, p3y, z0, 0, 0);
+        vertex(vc, pose, normal, light, 0, 0, 1, 255, 255, 255, p4x, p4y, z0, 0, 25);
+
+        // Back Face (CW from front, CCW from back)
+        vertex(vc, pose, normal, light, 0, 0, -1, 255, 255, 255, p1x, p1y, z1, 0, 0);
+        vertex(vc, pose, normal, light, 0, 0, -1, 255, 255, 255, p4x, p4y, z0, 0, 25);
+        vertex(vc, pose, normal, light, 0, 0, -1, 255, 255, 255, p3x, p3y, z0, 0, 0);
+        vertex(vc, pose, normal, light, 0, 0, -1, 255, 255, 255, p2x, p2y, z0, 0, 25);
     }
 }

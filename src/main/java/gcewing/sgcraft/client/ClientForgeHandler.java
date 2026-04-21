@@ -4,7 +4,6 @@ import gcewing.sgcraft.SGCraft;
 import gcewing.sgcraft.block.DHDBlock;
 import gcewing.sgcraft.block.SGBaseBlock;
 import gcewing.sgcraft.block.SGRingBlock;
-import gcewing.sgcraft.block.SGWormholeBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderHighlightEvent;
@@ -40,9 +39,5 @@ public class ClientForgeHandler {
             }
         }
 
-        // Hide outline for Wormhole Always
-        if (state.getBlock() instanceof SGWormholeBlock) {
-            event.setCanceled(true);
-        }
     }
 }
