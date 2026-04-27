@@ -111,6 +111,10 @@ public class SGBaseBlockEntity extends BlockEntity {
     public boolean isLinkedToController = false;
     public BlockPos linkedControllerPos = BlockPos.ZERO;
 
+    // Internal Energy Storage (Closed system)
+    public int energy = 0;
+    public static final int MAX_ENERGY = 1000000;
+
     // Stargate Address data
     public String homeAddress = "";
     public String addressError = null;
@@ -357,31 +361,28 @@ public class SGBaseBlockEntity extends BlockEntity {
         } else if (te.state == SGState.Connected) {
             // Energy consumption (Every second) - Only for initiator
             if (!te.isIncoming && level.getGameTime() % 20 == 0) {
-                DHDBlockEntity dhd = te.getLinkedDHD();
-                if (dhd != null) {
-                    double distance = 0;
-                    if (te.targetPos != null && te.targetDimension != null) {
-                        if (level.dimension().equals(te.targetDimension)) {
-                            distance = Math.sqrt(te.worldPosition.distSqr(te.targetPos));
-                        } else {
-                            distance = 1000; // Fixed penalty for dimensions
-                        }
-                    }
-                    
-                    double costPerSecond = ENERGY_MAINTAIN_WORMHOLE * 20;
-                    if (te.targetDimension != null && !level.dimension().equals(te.targetDimension)) {
-                        costPerSecond *= INTER_DIMENSION_MULTIPLIER;
-                    }
-                    costPerSecond += (distance * DISTANCE_FACTOR * 20);
-                    
-                    int totalCost = (int)costPerSecond;
-                    if (dhd.energyStorage.getEnergyStored() < totalCost) {
-                        LOGGER.info("Stargate at {} shutting down due to power failure", te.worldPosition);
-                        te.disconnect();
+                double distance = 0;
+                if (te.targetPos != null && te.targetDimension != null) {
+                    if (level.dimension().equals(te.targetDimension)) {
+                        distance = Math.sqrt(te.worldPosition.distSqr(te.targetPos));
                     } else {
-                        dhd.energyStorage.extractEnergy(totalCost, false);
-                        te.sync();
+                        distance = 1000; // Fixed penalty for dimensions
                     }
+                }
+                
+                double costPerSecond = ENERGY_MAINTAIN_WORMHOLE * 20;
+                if (te.targetDimension != null && !level.dimension().equals(te.targetDimension)) {
+                    costPerSecond *= INTER_DIMENSION_MULTIPLIER;
+                }
+                costPerSecond += (distance * DISTANCE_FACTOR * 20);
+                
+                int totalCost = (int)costPerSecond;
+                if (te.energy < totalCost) {
+                    LOGGER.info("Stargate at {} shutting down due to power failure", te.worldPosition);
+                    te.disconnect();
+                } else {
+                    te.energy -= totalCost;
+                    te.sync();
                 }
             }
 
@@ -505,15 +506,12 @@ public class SGBaseBlockEntity extends BlockEntity {
             return;
             
         // Consume opening energy
-        DHDBlockEntity dhd = getLinkedDHD();
-        if (dhd != null) {
-            int openingCost = ENERGY_OPEN_WORMHOLE;
-            if (targetDimension != null && !level.dimension().equals(targetDimension)) {
-                openingCost *= INTER_DIMENSION_MULTIPLIER;
-            }
-            dhd.energyStorage.extractEnergy(openingCost, false);
-            sync();
+        int openingCost = ENERGY_OPEN_WORMHOLE;
+        if (targetDimension != null && !level.dimension().equals(targetDimension)) {
+            openingCost *= INTER_DIMENSION_MULTIPLIER;
         }
+        this.energy = Math.max(0, this.energy - openingCost);
+        sync();
 
         level.playSound(null, worldPosition, ModSounds.STARGATE_WORMHOLE_OPEN.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
     }
@@ -653,19 +651,16 @@ public class SGBaseBlockEntity extends BlockEntity {
         }
 
         // 3. Check for Energy
-        DHDBlockEntity dhd = getLinkedDHD();
-        if (dhd != null) {
-            int openingCost = ENERGY_OPEN_WORMHOLE;
-            if (loc.dimension != null && !level.dimension().equals(loc.dimension)) {
-                openingCost *= INTER_DIMENSION_MULTIPLIER;
-            }
-            
-            if (dhd.energyStorage.getEnergyStored() < openingCost) {
-                this.addressError = "Insufficient Power (FE)";
-                level.playSound(null, worldPosition, ModSounds.STARGATE_ABORT.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
-                sync();
-                return;
-            }
+        int openingCost = ENERGY_OPEN_WORMHOLE;
+        if (loc.dimension != null && !level.dimension().equals(loc.dimension)) {
+            openingCost *= INTER_DIMENSION_MULTIPLIER;
+        }
+        
+        if (this.energy < openingCost) {
+            this.addressError = "Insufficient Power (FE)";
+            level.playSound(null, worldPosition, ModSounds.STARGATE_ABORT.get(), SoundSource.BLOCKS, 0.5F, 1.0F);
+            sync();
+            return;
         }
 
         // 4. Initiate Dialing
@@ -798,6 +793,7 @@ public class SGBaseBlockEntity extends BlockEntity {
         tag.putInt("linkedX", linkedControllerPos.getX());
         tag.putInt("linkedY", linkedControllerPos.getY());
         tag.putInt("linkedZ", linkedControllerPos.getZ());
+        tag.putInt("energy", energy);
         tag.putString("homeAddress", homeAddress != null ? homeAddress : "");
         if (addressError != null)
             tag.putString("addressError", addressError);
@@ -857,6 +853,7 @@ public class SGBaseBlockEntity extends BlockEntity {
         isIncoming = tag.getBoolean("isIncoming");
         isLinkedToController = tag.getBoolean("isLinkedToController");
         linkedControllerPos = new BlockPos(tag.getInt("linkedX"), tag.getInt("linkedY"), tag.getInt("linkedZ"));
+        energy = tag.getInt("energy");
         homeAddress = tag.getString("homeAddress");
         addressError = tag.contains("addressError") ? tag.getString("addressError") : null;
         inventory.deserializeNBT(tag.getCompound("inventory"));

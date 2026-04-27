@@ -13,8 +13,6 @@ import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemStackHandler;
-import net.minecraftforge.energy.EnergyStorage;
-import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraft.world.item.ItemStack;
 import gcewing.sgcraft.registry.ModItems;
 import org.jetbrains.annotations.NotNull;
@@ -46,32 +44,9 @@ public class DHDBlockEntity extends BlockEntity {
     public String enteredAddress = ""; // Used by DHDScreen
 
     public static final int ENERGY_PER_NAQUADAH = 400000;
-    public static final int MAX_ENERGY_BUFFER = 1000000;
-
-    public final EnergyStorage energyStorage = new EnergyStorage(MAX_ENERGY_BUFFER) {
-        @Override
-        public int receiveEnergy(int maxReceive, boolean simulate) {
-            int received = super.receiveEnergy(maxReceive, simulate);
-            if (received > 0 && !simulate) {
-                setChanged();
-            }
-            return received;
-        }
-
-        @Override
-        public int extractEnergy(int maxExtract, boolean simulate) {
-            int extracted = super.extractEnergy(maxExtract, simulate);
-            if (extracted > 0 && !simulate) {
-                setChanged();
-            }
-            return extracted;
-        }
-    };
-    private final LazyOptional<IEnergyStorage> energyHolder = LazyOptional.of(() -> energyStorage);
-
     // Backward compatibility / GUI mirrors
     public double energyInBuffer = 0;
-    public double maxEnergyBuffer = MAX_ENERGY_BUFFER;
+    public double maxEnergyBuffer = SGBaseBlockEntity.MAX_ENERGY;
 
     public final ItemStackHandler inventory = new ItemStackHandler(4) {
         @Override
@@ -93,20 +68,25 @@ public class DHDBlockEntity extends BlockEntity {
     public void tick(Level level, BlockPos pos, BlockState state) {
         if (level.isClientSide) return;
 
-        // Naquadah to Energy conversion
-        if (energyStorage.getEnergyStored() <= MAX_ENERGY_BUFFER - ENERGY_PER_NAQUADAH) {
-            for (int i = 0; i < inventory.getSlots(); i++) {
-                ItemStack stack = inventory.getStackInSlot(i);
-                if (!stack.isEmpty() && stack.is(ModItems.NAQUADAH.get())) {
-                    inventory.extractItem(i, 1, false);
-                    energyStorage.receiveEnergy(ENERGY_PER_NAQUADAH, false);
-                    break;
+        // Naquadah to Energy conversion (Directly to Stargate)
+        SGBaseBlockEntity stargate = getLinkedStargateTE();
+        if (stargate != null) {
+            if (stargate.energy <= SGBaseBlockEntity.MAX_ENERGY - ENERGY_PER_NAQUADAH) {
+                for (int i = 0; i < inventory.getSlots(); i++) {
+                    ItemStack stack = inventory.getStackInSlot(i);
+                    if (!stack.isEmpty() && stack.is(ModItems.NAQUADAH.get())) {
+                        inventory.extractItem(i, 1, false);
+                        stargate.energy += ENERGY_PER_NAQUADAH;
+                        stargate.setChanged();
+                        break;
+                    }
                 }
             }
+            // Update GUI mirrors from Stargate
+            energyInBuffer = stargate.energy;
+        } else {
+            energyInBuffer = 0;
         }
-        
-        // Update GUI mirrors
-        energyInBuffer = energyStorage.getEnergyStored();
 
         // Auto-link if not linked, every 2 seconds
         if (!isLinkedToStargate && level.getGameTime() % 40 == 0) {
@@ -196,10 +176,7 @@ public class DHDBlockEntity extends BlockEntity {
         tag.putInt("stargateX", linkedStargatePos.getX());
         tag.putInt("stargateY", linkedStargatePos.getY());
         tag.putInt("stargateZ", linkedStargatePos.getZ());
-        tag.putString("enteredAddress", enteredAddress);
-        tag.putDouble("energy", energyStorage.getEnergyStored());
         tag.put("inventory", inventory.serializeNBT());
-        tag.putInt("energyFE", energyStorage.getEnergyStored());
     }
 
     @Override
@@ -217,13 +194,6 @@ public class DHDBlockEntity extends BlockEntity {
         super.load(tag);
         isLinkedToStargate = tag.getBoolean("isLinked");
         linkedStargatePos = new BlockPos(tag.getInt("stargateX"), tag.getInt("stargateY"), tag.getInt("stargateZ"));
-        enteredAddress = tag.getString("enteredAddress");
-        energyInBuffer = tag.getDouble("energy");
-        if (tag.contains("energyFE")) {
-            energyStorage.receiveEnergy(tag.getInt("energyFE"), false);
-        } else {
-            energyStorage.receiveEnergy((int)energyInBuffer, false);
-        }
         inventory.deserializeNBT(tag.getCompound("inventory"));
     }
 
@@ -232,9 +202,6 @@ public class DHDBlockEntity extends BlockEntity {
         if (cap == ForgeCapabilities.ITEM_HANDLER) {
             return inventoryHolder.cast();
         }
-        if (cap == ForgeCapabilities.ENERGY) {
-            return energyHolder.cast();
-        }
         return super.getCapability(cap, side);
     }
 
@@ -242,6 +209,5 @@ public class DHDBlockEntity extends BlockEntity {
     public void invalidateCaps() {
         super.invalidateCaps();
         inventoryHolder.invalidate();
-        energyHolder.invalidate();
     }
 }

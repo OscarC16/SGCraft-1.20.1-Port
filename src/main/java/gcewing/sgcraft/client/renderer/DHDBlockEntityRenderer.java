@@ -23,8 +23,8 @@ import org.joml.Matrix4f;
 public class DHDBlockEntityRenderer implements BlockEntityRenderer<DHDBlockEntity> {
 
     // Texture files for indices 0 and 1 (top dome and side panels - used as full textures)
-    private static final ResourceLocation TEX_DHD_TOP = new ResourceLocation(SGCraft.MODID, "textures/block/dhd_top.png");
-    private static final ResourceLocation TEX_DHD_SIDE = new ResourceLocation(SGCraft.MODID, "textures/block/dhd_side.png");
+    private static final ResourceLocation TEX_DHD_TOP = new ResourceLocation(SGCraft.MODID, "textures/block/dhd/dhd_top.png");
+    private static final ResourceLocation TEX_DHD_SIDE = new ResourceLocation(SGCraft.MODID, "textures/block/dhd/dhd_side.png");
     // Detail texture (2x2 tiled) for indices 2 (side detail) and 3 (button)
     private static final ResourceLocation TEX_DHD_DETAIL = new ResourceLocation(SGCraft.MODID, "textures/block/dhd/dhd_detail.png");
 
