@@ -1,0 +1,26 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT License"
+issueTrackerURL="https://github.com/OscarC16/Port-SGCraft/issues"
+
+[[mods]]
+modId="sgcraft"
+version="2.2.1"
+displayName="SGCraft"
+authors="Greg Ewing, OscarC16"
+description='''Stargate in Minecraft'''
+logoFile="sgcraft_logo.png"
+
+[[dependencies.sgcraft]]
+    modId="neoforge"
+    type="required"
+    versionRange="[21.11,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.sgcraft]]
+    modId="minecraft"
+    type="required"
+    versionRange="[1.21.11,1.22)"
+    ordering="NONE"
+    side="BOTH"
