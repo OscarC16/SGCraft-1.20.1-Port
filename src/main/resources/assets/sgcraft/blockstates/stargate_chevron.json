@@ -1,6 +1,0 @@
-{
-  "variants": {
-    "merged=false": { "model": "sgcraft:block/stargate_chevron" },
-    "merged=true":  { "model": "sgcraft:block/stargate_chevron_merged" }
-  }
-}

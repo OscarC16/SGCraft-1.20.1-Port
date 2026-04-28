@@ -1,0 +1,71 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "Client",
+      "presentation": {
+        "group": "Mod Development - sgcraft",
+        "order": 0
+      },
+      "projectName": "sgcraft",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@D:\\Antigravity\\Mod\\sgcraft_1_21_11\\build\\moddev\\clientRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@D:\\Antigravity\\Mod\\sgcraft_1_21_11\\build\\moddev\\clientRunVmArgs.txt",
+        "-Dfml.modFolders\u003dsgcraft%%D:\\Antigravity\\Mod\\sgcraft_1_21_11\\bin\\main"
+      ],
+      "cwd": "${workspaceFolder}\\run",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "Data",
+      "presentation": {
+        "group": "Mod Development - sgcraft",
+        "order": 1
+      },
+      "projectName": "sgcraft",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@D:\\Antigravity\\Mod\\sgcraft_1_21_11\\build\\moddev\\dataRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@D:\\Antigravity\\Mod\\sgcraft_1_21_11\\build\\moddev\\dataRunVmArgs.txt",
+        "-Dfml.modFolders\u003dsgcraft%%D:\\Antigravity\\Mod\\sgcraft_1_21_11\\bin\\main"
+      ],
+      "cwd": "${workspaceFolder}\\run",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "Server",
+      "presentation": {
+        "group": "Mod Development - sgcraft",
+        "order": 2
+      },
+      "projectName": "sgcraft",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@D:\\Antigravity\\Mod\\sgcraft_1_21_11\\build\\moddev\\serverRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@D:\\Antigravity\\Mod\\sgcraft_1_21_11\\build\\moddev\\serverRunVmArgs.txt",
+        "-Dfml.modFolders\u003dsgcraft%%D:\\Antigravity\\Mod\\sgcraft_1_21_11\\bin\\main"
+      ],
+      "cwd": "${workspaceFolder}\\run",
+      "env": {},
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    }
+  ]
+}

@@ -1,7 +1,0 @@
-{
-  "parent": "minecraft:block/cube_column",
-  "textures": {
-    "end": "sgcraft:block/stargate_block",
-    "side": "sgcraft:block/stargate_chevron"
-  }
-}
