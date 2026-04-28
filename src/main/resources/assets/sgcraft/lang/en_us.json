@@ -1,0 +1,20 @@
+{
+  "itemGroup.sgcraft": "SG Craft",
+  "block.sgcraft.naquadah_block": "Naquadah Alloy Block",
+  "block.sgcraft.naquadah_ore": "Naquadah Ore",
+  "block.sgcraft.deepslate_naquadah_ore": "Deepslate Naquadah Ore",
+  "block.sgcraft.stargate_ring": "Stargate Ring Block",
+  "block.sgcraft.stargate_chevron": "Stargate Chevron Block",
+  "block.sgcraft.stargate_base": "Stargate Base",
+  "block.sgcraft.stargate_controller": "Stargate Controller",
+  "item.sgcraft.naquadah": "Naquadah",
+  "item.sgcraft.naquadah_ingot": "Naquadah Alloy Ingot",
+  "item.sgcraft.sg_core_crystal": "Stargate Core Crystal",
+  "item.sgcraft.sg_controller_crystal": "Stargate Controller Crystal",
+  "item.sgcraft.sg_chevron_upgrade": "Stargate Chevron Upgrade",
+  "item.sgcraft.sg_iris_upgrade": "Stargate Iris Upgrade",
+  "item.sgcraft.sg_iris_blade": "Stargate Iris Blade",
+  "gui.sgcraft.dhd.title": "DHD Dialing",
+  "gui.sgcraft.fuel.title": "Stargate Controller",
+  "gui.sgcraft.fuel.label": "Fuel"
+}

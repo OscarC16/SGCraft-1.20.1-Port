@@ -6,6 +6,7 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
+import gcewing.sgcraft.block.*;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 public class ModBlocks {
@@ -20,17 +21,17 @@ public class ModBlocks {
     public static final net.neoforged.neoforge.registries.DeferredBlock<Block> DEEPSLATE_NAQUADAH_ORE = BLOCKS.registerBlock("deepslate_naquadah_ore", 
         Block::new, BlockBehaviour.Properties.of().mapColor(MapColor.DEEPSLATE).strength(4.5F, 3.0F).sound(SoundType.DEEPSLATE).requiresCorrectToolForDrops());
 
-    public static final net.neoforged.neoforge.registries.DeferredBlock<Block> STARGATE_RING = BLOCKS.registerBlock("stargate_ring", 
-        Block::new, BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(3.0F, 3.0F).sound(SoundType.STONE).noOcclusion().requiresCorrectToolForDrops());
+    public static final net.neoforged.neoforge.registries.DeferredBlock<SGRingBlock> STARGATE_RING = BLOCKS.registerBlock("stargate_ring", 
+        SGRingBlock::new, BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(3.0F, 3.0F).sound(SoundType.STONE).noOcclusion().requiresCorrectToolForDrops());
 
-    public static final net.neoforged.neoforge.registries.DeferredBlock<Block> STARGATE_CHEVRON = BLOCKS.registerBlock("stargate_chevron", 
-        Block::new, BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(3.0F, 3.0F).sound(SoundType.STONE).noOcclusion().requiresCorrectToolForDrops());
+    public static final net.neoforged.neoforge.registries.DeferredBlock<SGChevronBlock> STARGATE_CHEVRON = BLOCKS.registerBlock("stargate_chevron", 
+        SGChevronBlock::new, BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(3.0F, 3.0F).sound(SoundType.STONE).noOcclusion().requiresCorrectToolForDrops());
 
-    public static final net.neoforged.neoforge.registries.DeferredBlock<Block> STARGATE_BASE = BLOCKS.registerBlock("stargate_base", 
-        Block::new, BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(3.0F, 3.0F).sound(SoundType.STONE).noOcclusion().requiresCorrectToolForDrops());
+    public static final net.neoforged.neoforge.registries.DeferredBlock<SGBaseBlock> STARGATE_BASE = BLOCKS.registerBlock("stargate_base", 
+        SGBaseBlock::new, BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(3.0F, 3.0F).sound(SoundType.STONE).noOcclusion().requiresCorrectToolForDrops());
 
-    public static final net.neoforged.neoforge.registries.DeferredBlock<Block> STARGATE_CONTROLLER = BLOCKS.registerBlock("stargate_controller", 
-        Block::new, BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(3.0F, 3.0F).sound(SoundType.STONE).noOcclusion().requiresCorrectToolForDrops());
+    public static final net.neoforged.neoforge.registries.DeferredBlock<DHDBlock> STARGATE_CONTROLLER = BLOCKS.registerBlock("stargate_controller", 
+        DHDBlock::new, BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(3.0F, 3.0F).sound(SoundType.STONE).noOcclusion().requiresCorrectToolForDrops());
 
     public static final net.neoforged.neoforge.registries.DeferredBlock<Block> STARGATE_IRIS = BLOCKS.registerBlock("stargate_iris", 
         Block::new, BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_GRAY).strength(-1.0F, 3600000.0F).noOcclusion().pushReaction(PushReaction.BLOCK));

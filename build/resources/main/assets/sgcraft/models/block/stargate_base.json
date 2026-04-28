@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "top": "sgcraft:block/stargate_block",
+    "front": "sgcraft:block/stargate_base_front",
+    "side": "sgcraft:block/stargate_ring"
+  }
+}
