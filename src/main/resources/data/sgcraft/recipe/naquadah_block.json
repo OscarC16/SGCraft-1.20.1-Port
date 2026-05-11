@@ -1,0 +1,17 @@
+{
+    "type":  "minecraft:crafting_shaped",
+    "pattern":  [
+                    "NNN",
+                    "NNN",
+                    "NNN"
+                ],
+    "key":  {
+                "N":  {
+                          "item":  "sgcraft:naquadah_ingot"
+                      }
+            },
+    "result":  {
+                   "id":  "sgcraft:naquadah_block"
+               }
+}
+

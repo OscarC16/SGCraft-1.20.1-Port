@@ -22,17 +22,20 @@ public class ModBlocks {
         Block::new, BlockBehaviour.Properties.of().mapColor(MapColor.DEEPSLATE).strength(4.5F, 3.0F).sound(SoundType.DEEPSLATE).requiresCorrectToolForDrops());
 
     public static final net.neoforged.neoforge.registries.DeferredBlock<SGRingBlock> STARGATE_RING = BLOCKS.registerBlock("stargate_ring", 
-        SGRingBlock::new, BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(3.0F, 3.0F).sound(SoundType.STONE).noOcclusion().requiresCorrectToolForDrops());
+        SGRingBlock::new, BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(3.0F, 3.0F).sound(SoundType.STONE).noOcclusion().requiresCorrectToolForDrops()
+            .lightLevel(state -> state.getValue(gcewing.sgcraft.block.SGBlockStates.LIT) ? 15 : 0));
 
     public static final net.neoforged.neoforge.registries.DeferredBlock<SGChevronBlock> STARGATE_CHEVRON = BLOCKS.registerBlock("stargate_chevron", 
-        SGChevronBlock::new, BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(3.0F, 3.0F).sound(SoundType.STONE).noOcclusion().requiresCorrectToolForDrops());
+        SGChevronBlock::new, BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(3.0F, 3.0F).sound(SoundType.STONE).noOcclusion().requiresCorrectToolForDrops()
+            .lightLevel(state -> state.getValue(gcewing.sgcraft.block.SGBlockStates.LIT) ? 15 : 0));
 
     public static final net.neoforged.neoforge.registries.DeferredBlock<SGBaseBlock> STARGATE_BASE = BLOCKS.registerBlock("stargate_base", 
-        SGBaseBlock::new, BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(3.0F, 3.0F).sound(SoundType.STONE).noOcclusion().requiresCorrectToolForDrops());
+        SGBaseBlock::new, BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(3.0F, 3.0F).sound(SoundType.STONE).noOcclusion().requiresCorrectToolForDrops()
+            .lightLevel(state -> state.getValue(gcewing.sgcraft.block.SGBlockStates.LIT) ? 15 : 0));
 
     public static final net.neoforged.neoforge.registries.DeferredBlock<DHDBlock> STARGATE_CONTROLLER = BLOCKS.registerBlock("stargate_controller", 
         DHDBlock::new, BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(3.0F, 3.0F).sound(SoundType.STONE).noOcclusion().requiresCorrectToolForDrops());
 
-    public static final net.neoforged.neoforge.registries.DeferredBlock<Block> STARGATE_IRIS = BLOCKS.registerBlock("stargate_iris", 
-        Block::new, BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_GRAY).strength(-1.0F, 3600000.0F).noOcclusion().pushReaction(PushReaction.BLOCK));
+    public static final net.neoforged.neoforge.registries.DeferredBlock<SGIrisBlock> STARGATE_IRIS = BLOCKS.registerBlock("stargate_iris", 
+        SGIrisBlock::new, BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_GRAY).strength(-1.0F, 3600000.0F).noOcclusion().pushReaction(PushReaction.BLOCK));
 }

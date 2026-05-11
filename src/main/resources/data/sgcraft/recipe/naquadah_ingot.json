@@ -1,0 +1,34 @@
+{
+    "type":  "minecraft:crafting_shapeless",
+    "ingredients":  [
+                        {
+                            "item":  "sgcraft:naquadah"
+                        },
+                        {
+                            "item":  "sgcraft:naquadah"
+                        },
+                        {
+                            "item":  "sgcraft:naquadah"
+                        },
+                        {
+                            "item":  "sgcraft:naquadah"
+                        },
+                        {
+                            "item":  "minecraft:iron_ingot"
+                        },
+                        {
+                            "item":  "minecraft:iron_ingot"
+                        },
+                        {
+                            "item":  "minecraft:iron_ingot"
+                        },
+                        {
+                            "item":  "minecraft:iron_ingot"
+                        }
+                    ],
+    "result":  {
+                   "count":  2,
+                   "id":  "sgcraft:naquadah_ingot"
+               }
+}
+

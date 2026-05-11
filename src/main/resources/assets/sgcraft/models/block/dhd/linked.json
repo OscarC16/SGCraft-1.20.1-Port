@@ -1,0 +1,9 @@
+{
+  "loader": "neoforge:obj",
+  "model": "sgcraft:models/block/dhd/linked.obj",
+  "mtl_override": "sgcraft:models/block/stargate_controller.mtl",
+  "flip_v": true,
+  "transform": {
+    "translation": [ 0.5, 0, 0.5 ]
+  }
+}

@@ -1,0 +1,26 @@
+{
+    "type":  "minecraft:crafting_shaped",
+    "pattern":  [
+                    "bbb",
+                    "OpO",
+                    "OcO"
+                ],
+    "key":  {
+                "b":  {
+                          "item":  "minecraft:stone_button"
+                      },
+                "O":  {
+                          "item":  "minecraft:obsidian"
+                      },
+                "p":  {
+                          "item":  "minecraft:ender_pearl"
+                      },
+                "c":  {
+                          "item":  "sgcraft:sg_controller_crystal"
+                      }
+            },
+    "result":  {
+                   "id":  "sgcraft:stargate_controller"
+               }
+}
+

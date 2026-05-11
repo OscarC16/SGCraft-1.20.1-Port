@@ -6,6 +6,8 @@ import net.minecraft.world.item.Item;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.DeferredItem;
 
+import gcewing.sgcraft.item.DHDItem;
+
 public class ModItems {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(SGCraft.MODID);
 
@@ -23,5 +25,6 @@ public class ModItems {
     public static final DeferredItem<BlockItem> STARGATE_RING_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.STARGATE_RING);
     public static final DeferredItem<BlockItem> STARGATE_CHEVRON_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.STARGATE_CHEVRON);
     public static final DeferredItem<BlockItem> STARGATE_BASE_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.STARGATE_BASE);
-    public static final DeferredItem<BlockItem> STARGATE_CONTROLLER_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.STARGATE_CONTROLLER);
+    public static final DeferredItem<Item> STARGATE_CONTROLLER_ITEM = ITEMS.register("stargate_controller",
+        () -> new DHDItem(ModBlocks.STARGATE_CONTROLLER.get(), new Item.Properties()));
 }

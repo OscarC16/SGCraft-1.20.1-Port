@@ -1,5 +1,6 @@
 package gcewing.sgcraft.block;
 
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.block.Block;
@@ -7,11 +8,19 @@ import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.core.BlockPos;
+import gcewing.sgcraft.block.entity.DHDBlockEntity;
+import net.minecraft.world.phys.shapes.VoxelShape;
+import org.jetbrains.annotations.Nullable;
 
-import com.mojang.serialization.MapCodec;
-
-public class DHDBlock extends HorizontalDirectionalBlock {
+public class DHDBlock extends BaseEntityBlock {
     public static final MapCodec<DHDBlock> CODEC = simpleCodec(DHDBlock::new);
+    public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
 
     public DHDBlock(BlockBehaviour.Properties properties) {
         super(properties);
@@ -23,9 +32,81 @@ public class DHDBlock extends HorizontalDirectionalBlock {
         return CODEC;
     }
 
+    @Nullable
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new DHDBlockEntity(pos, state);
+    }
+
+    @Override
+    public RenderShape getRenderShape(BlockState state) {
+        return RenderShape.ENTITYBLOCK_ANIMATED;
+    }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<T> getTicker(Level level, BlockState state, net.minecraft.world.level.block.entity.BlockEntityType<T> type) {
+        return createTickerHelper(type, gcewing.sgcraft.registry.ModBlockEntities.DHD_BLOCK_ENTITY.get(),
+                (l, p, s, be) -> be.tick(l, p, s));
+    }
+
+    protected static final VoxelShape SHAPE = Block.box(1.0D, 0.0D, 1.0D, 15.0D, 16.0D, 15.0D);
+
+    @Override
+    public VoxelShape getShape(BlockState state, net.minecraft.world.level.BlockGetter level, BlockPos pos, net.minecraft.world.phys.shapes.CollisionContext context) {
+        return SHAPE;
+    }
+
+    @Override
+    public boolean useShapeForLightOcclusion(BlockState state) {
+        return false;
+    }
+
+    @Override
+    public net.minecraft.world.InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, net.minecraft.world.entity.player.Player player, net.minecraft.world.phys.BlockHitResult hit) {
+        double hitY = hit.getLocation().y - pos.getY();
+        if (!level.isClientSide) {
+            if (hitY <= 0.5) {
+                player.openMenu(new net.minecraft.world.SimpleMenuProvider(
+                    (id, inv, p) -> new gcewing.sgcraft.world.inventory.DHDFuelMenu(id, inv, level.getBlockEntity(pos), net.minecraft.world.inventory.ContainerLevelAccess.create(level, pos)),
+                    net.minecraft.network.chat.Component.literal("DHD Fuel")
+                ), pos);
+                return net.minecraft.world.InteractionResult.SUCCESS;
+            }
+        } else {
+            if (hitY > 0.5) {
+                BlockEntity be = level.getBlockEntity(pos);
+                if (be instanceof DHDBlockEntity dhd) {
+                    net.minecraft.client.Minecraft.getInstance().setScreen(new gcewing.sgcraft.client.gui.DHDScreen(dhd));
+                }
+                return net.minecraft.world.InteractionResult.SUCCESS;
+            }
+        }
+        return net.minecraft.world.InteractionResult.SUCCESS;
+    }
+
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
+    }
+
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!state.is(newState.getBlock())) {
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof DHDBlockEntity dhdBE) {
+                // Drop items
+                for (int i = 0; i < dhdBE.inventory.getSlots(); i++) {
+                    net.minecraft.world.item.ItemStack stack = dhdBE.inventory.getStackInSlot(i);
+                    if (!stack.isEmpty()) {
+                        net.minecraft.world.Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), stack);
+                    }
+                }
+                // Clear Stargate link
+                dhdBE.clearLinkToStargate();
+            }
+            super.onRemove(state, level, pos, newState, isMoving);
+        }
     }
 
     @Override

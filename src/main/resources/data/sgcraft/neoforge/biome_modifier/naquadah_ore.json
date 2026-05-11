@@ -1,5 +1,5 @@
 {
-  "type": "forge:add_features",
+  "type": "neoforge:add_features",
   "biomes": "#sgcraft:overworld",
   "features": [
     "sgcraft:naquadah_ore"
