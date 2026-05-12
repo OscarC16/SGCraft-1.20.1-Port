@@ -1,6 +1,0 @@
-﻿newmtl dhd_top
-map_Kd sgcraft:block/dhd/dhd_top
-newmtl dhd_side
-map_Kd sgcraft:block/dhd/dhd_side
-newmtl dhd_detail
-map_Kd sgcraft:block/dhd/dhd_detail
