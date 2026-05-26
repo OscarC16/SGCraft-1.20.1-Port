@@ -8,7 +8,7 @@ import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.RenderShape;
@@ -20,7 +20,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class DHDBlock extends BaseEntityBlock {
     public static final MapCodec<DHDBlock> CODEC = simpleCodec(DHDBlock::new);
-    public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
+    public static final EnumProperty<Direction> FACING = HorizontalDirectionalBlock.FACING;
 
     public DHDBlock(BlockBehaviour.Properties properties) {
         super(properties);
@@ -40,7 +40,7 @@ public class DHDBlock extends BaseEntityBlock {
 
     @Override
     public RenderShape getRenderShape(BlockState state) {
-        return RenderShape.ENTITYBLOCK_ANIMATED;
+        return RenderShape.INVISIBLE;
     }
 
     @Nullable
@@ -65,24 +65,23 @@ public class DHDBlock extends BaseEntityBlock {
     @Override
     public net.minecraft.world.InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, net.minecraft.world.entity.player.Player player, net.minecraft.world.phys.BlockHitResult hit) {
         double hitY = hit.getLocation().y - pos.getY();
-        if (!level.isClientSide) {
-            if (hitY <= 0.5) {
+        if (hitY > 0.5) {
+            if (level.isClientSide()) {
+                BlockEntity be = level.getBlockEntity(pos);
+                if (be instanceof DHDBlockEntity dhd) {
+                    gcewing.sgcraft.client.ClientScreenHelper.openDHDScreen(dhd);
+                }
+            }
+            return net.minecraft.world.InteractionResult.SUCCESS;
+        } else {
+            if (!level.isClientSide()) {
                 player.openMenu(new net.minecraft.world.SimpleMenuProvider(
                     (id, inv, p) -> new gcewing.sgcraft.world.inventory.DHDFuelMenu(id, inv, level.getBlockEntity(pos), net.minecraft.world.inventory.ContainerLevelAccess.create(level, pos)),
                     net.minecraft.network.chat.Component.literal("DHD Fuel")
                 ), pos);
-                return net.minecraft.world.InteractionResult.SUCCESS;
             }
-        } else {
-            if (hitY > 0.5) {
-                BlockEntity be = level.getBlockEntity(pos);
-                if (be instanceof DHDBlockEntity dhd) {
-                    net.minecraft.client.Minecraft.getInstance().setScreen(new gcewing.sgcraft.client.gui.DHDScreen(dhd));
-                }
-                return net.minecraft.world.InteractionResult.SUCCESS;
-            }
+            return net.minecraft.world.InteractionResult.SUCCESS;
         }
-        return net.minecraft.world.InteractionResult.SUCCESS;
     }
 
     @Override
@@ -90,24 +89,6 @@ public class DHDBlock extends BaseEntityBlock {
         return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
     }
 
-    @Override
-    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
-        if (!state.is(newState.getBlock())) {
-            BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof DHDBlockEntity dhdBE) {
-                // Drop items
-                for (int i = 0; i < dhdBE.inventory.getSlots(); i++) {
-                    net.minecraft.world.item.ItemStack stack = dhdBE.inventory.getStackInSlot(i);
-                    if (!stack.isEmpty()) {
-                        net.minecraft.world.Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), stack);
-                    }
-                }
-                // Clear Stargate link
-                dhdBE.clearLinkToStargate();
-            }
-            super.onRemove(state, level, pos, newState, isMoving);
-        }
-    }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {

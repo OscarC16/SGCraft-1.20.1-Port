@@ -1,24 +1,24 @@
 modLoader="javafml"
-loaderVersion="[4,)"
+loaderVersion="${loader_version_range}"
 license="MIT"
 
 [[mods]]
-modId="sgcraft"
-version="2.2.1"
-displayName="SGCraft"
-authors="OscarC16"
-description="Stargate Mod for NeoForge"
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+authors="${mod_authors}"
+description="${mod_description}"
 
-[[dependencies.sgcraft]]
+[[dependencies.${mod_id}]]
     modId="neoforge"
     type="required"
-    versionRange="[21.1,)"
+    versionRange="${neo_version_range}"
     ordering="NONE"
     side="BOTH"
 
-[[dependencies.sgcraft]]
+[[dependencies.${mod_id}]]
     modId="minecraft"
     type="required"
-    versionRange="[1.21,1.22)"
+    versionRange="${minecraft_version_range}"
     ordering="NONE"
     side="BOTH"

@@ -2,7 +2,7 @@ package gcewing.sgcraft.registry;
 
 import gcewing.sgcraft.SGCraft;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -23,6 +23,6 @@ public class ModSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> STARGATE_IRIS_HIT = registerSound("stargate.iris_hit");
 
     private static DeferredHolder<SoundEvent, SoundEvent> registerSound(String name) {
-        return SOUNDS.register(name, () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(SGCraft.MODID, name)));
+        return SOUNDS.register(name, () -> SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath(SGCraft.MODID, name)));
     }
 }

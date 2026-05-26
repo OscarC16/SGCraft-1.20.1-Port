@@ -6,23 +6,25 @@ import com.mojang.math.Axis;
 import gcewing.sgcraft.SGCraft;
 import gcewing.sgcraft.block.SGBlockStates;
 import gcewing.sgcraft.block.entity.SGBaseBlockEntity;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
-public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBlockEntity> {
-    private static final ResourceLocation STARGATE_TEXTURE = ResourceLocation.fromNamespaceAndPath(SGCraft.MODID, "textures/tileentity/stargate.png");
-    private static final ResourceLocation PUDDLE_TEXTURE = ResourceLocation.fromNamespaceAndPath(SGCraft.MODID, "textures/tileentity/eventhorizon.png");
-    private static final ResourceLocation IRIS_TEXTURE = ResourceLocation.fromNamespaceAndPath(SGCraft.MODID, "textures/tileentity/iris.png");
+public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBlockEntity, SGBaseBlockEntityRenderer.SGRenderState> {
+    public static class SGRenderState extends net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState {
+        public SGBaseBlockEntity te;
+        public float partialTicks;
+    }
+    private static final Identifier STARGATE_TEXTURE = Identifier.fromNamespaceAndPath(SGCraft.MODID, "textures/tileentity/stargate.png");
+    private static final Identifier PUDDLE_TEXTURE = Identifier.fromNamespaceAndPath(SGCraft.MODID, "textures/tileentity/eventhorizon.png");
+    private static final Identifier IRIS_TEXTURE = Identifier.fromNamespaceAndPath(SGCraft.MODID, "textures/tileentity/iris.png");
     private static final int NUM_IRIS_BLADES = 12;
 
 
@@ -71,7 +73,24 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
     }
 
     @Override
-    public void render(SGBaseBlockEntity te, float partialTicks, PoseStack poseStack, MultiBufferSource buffer, int combinedLight, int combinedOverlay) {
+    public SGRenderState createRenderState() {
+        return new SGRenderState();
+    }
+
+    @Override
+    public void extractRenderState(SGBaseBlockEntity te, SGRenderState state, float partialTicks, net.minecraft.world.phys.Vec3 pos, net.minecraft.client.renderer.feature.ModelFeatureRenderer.CrumblingOverlay overlay) {
+        state.te = te;
+        state.partialTicks = partialTicks;
+        net.minecraft.client.renderer.blockentity.BlockEntityRenderer.super.extractRenderState(te, state, partialTicks, pos, overlay);
+    }
+
+    @Override
+    public void submit(SGRenderState state, PoseStack poseStack, net.minecraft.client.renderer.SubmitNodeCollector collector, net.minecraft.client.renderer.state.CameraRenderState cameraState) {
+        net.minecraft.client.renderer.OrderedSubmitNodeCollector ordered = collector.order(state.lightCoords);
+        renderInternal(state.te, state.partialTicks, poseStack, ordered, state.lightCoords, OverlayTexture.NO_OVERLAY);
+    }
+
+    public void renderInternal(SGBaseBlockEntity te, float partialTicks, PoseStack poseStack, net.minecraft.client.renderer.OrderedSubmitNodeCollector ordered, int combinedLight, int combinedOverlay) {
         if (!te.isMerged) return;
 
         BlockState state = te.getBlockState();
@@ -80,7 +99,7 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
         poseStack.pushPose();
         poseStack.translate(0.5, 2.5, 0.5);
         
-        renderCamouflage(te, poseStack, buffer, combinedLight, combinedOverlay, facing);
+        renderCamouflage(te, poseStack, ordered, combinedLight, combinedOverlay, facing);
 
         float rotation = switch (facing) {
             case NORTH -> 180f;
@@ -91,75 +110,78 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
         };
         poseStack.mulPose(Axis.YP.rotationDegrees(rotation));
 
-        VertexConsumer vc = buffer.getBuffer(RenderType.entityCutoutNoCull(STARGATE_TEXTURE));
-        Matrix4f pose = poseStack.last().pose();
-        Matrix3f normalMat = poseStack.last().normal();
-
         // Outer ring
-        renderRing(vc, pose, normalMat, combinedLight, RING_MID_RADIUS - RING_OVERLAP, RING_OUTER_RADIUS, true, RING_Z_OFFSET);
+        ordered.submitCustomGeometry(poseStack, RenderTypes.entityCutoutNoCull(STARGATE_TEXTURE), (pose, vc) -> {
+            renderRing(vc, pose.pose(), pose.normal(), combinedLight, RING_MID_RADIUS - RING_OVERLAP, RING_OUTER_RADIUS, true, RING_Z_OFFSET);
+        });
 
         // Inner ring
         float ringAngle = (float) te.ringAngle;
         poseStack.pushPose();
         poseStack.mulPose(Axis.ZP.rotationDegrees(ringAngle));
-        renderRing(vc, poseStack.last().pose(), poseStack.last().normal(), combinedLight, RING_INNER_RADIUS, RING_MID_RADIUS, false, 0);
+        ordered.submitCustomGeometry(poseStack, RenderTypes.entityCutoutNoCull(STARGATE_TEXTURE), (pose, vc) -> {
+            renderRing(vc, pose.pose(), pose.normal(), combinedLight, RING_INNER_RADIUS, RING_MID_RADIUS, false, 0);
+        });
         poseStack.popPose();
 
         // Chevrons
-        renderChevrons(te, partialTicks, poseStack, buffer, combinedLight);
+        renderChevrons(te, partialTicks, poseStack, ordered, combinedLight);
 
         // Event Horizon
         if (te.state == SGBaseBlockEntity.State.Connected || te.state == SGBaseBlockEntity.State.Transient || te.state == SGBaseBlockEntity.State.Disconnecting) {
-            renderEventHorizon(te, poseStack, buffer, combinedLight, false); // Front
-            renderEventHorizon(te, poseStack, buffer, combinedLight, true);  // Back
+            renderEventHorizon(te, poseStack, ordered, combinedLight, false); // Front
+            renderEventHorizon(te, poseStack, ordered, combinedLight, true);  // Back
         }
 
         if (te.hasIrisUpgrade) {
-            renderIris(te, partialTicks, poseStack, buffer, combinedLight);
+            renderIris(te, partialTicks, poseStack, ordered, combinedLight);
         }
 
         poseStack.popPose();
     }
 
-    private void renderEventHorizon(SGBaseBlockEntity te, PoseStack poseStack, MultiBufferSource buffer, int combinedLight, boolean back) {
+    private void renderEventHorizon(SGBaseBlockEntity te, PoseStack poseStack, net.minecraft.client.renderer.OrderedSubmitNodeCollector ordered, int combinedLight, boolean back) {
         poseStack.pushPose();
         if (back) {
             poseStack.mulPose(Axis.YP.rotationDegrees(180));
         }
-        VertexConsumer vc = buffer.getBuffer(RenderType.entitySolid(PUDDLE_TEXTURE));
-        Matrix4f pose = poseStack.last().pose();
-        Matrix3f normal = poseStack.last().normal();
 
-        final double rclip = 2.5;
-        final double ehBandWidth = RING_INNER_RADIUS / SGBaseBlockEntity.ehGridRadialSize;
-        double[][] grid = te.getEventHorizonGrid()[0];
-        boolean flat = te.irisPhase < 1.0f;
+        final boolean finalBack = back;
+        ordered.submitCustomGeometry(poseStack, RenderTypes.entitySolid(PUDDLE_TEXTURE), (pose, vc) -> {
+            Matrix4f matrixPose = pose.pose();
+            Matrix3f normal = pose.normal();
 
-        // Quads for the rings > 0
-        for (int i = 1; i < SGBaseBlockEntity.ehGridRadialSize; i++) {
+            final double rclip = 2.5;
+            final double ehBandWidth = RING_INNER_RADIUS / SGBaseBlockEntity.ehGridRadialSize;
+            double[][] grid = te.getEventHorizonGrid()[0];
+            boolean flat = te.irisPhase < 1.0f;
+
+            // Quads for the rings > 0
+            for (int i = 1; i < SGBaseBlockEntity.ehGridRadialSize; i++) {
+                for (int j = 0; j < SGBaseBlockEntity.ehGridPolarSize; j++) {
+                    ehVertexQuad(vc, matrixPose, normal, grid, i, j, rclip, ehBandWidth, combinedLight, flat, finalBack);
+                    ehVertexQuad(vc, matrixPose, normal, grid, i + 1, j, rclip, ehBandWidth, combinedLight, flat, finalBack);
+                    ehVertexQuad(vc, matrixPose, normal, grid, i + 1, j + 1, rclip, ehBandWidth, combinedLight, flat, finalBack);
+                    ehVertexQuad(vc, matrixPose, normal, grid, i, j + 1, rclip, ehBandWidth, combinedLight, flat, finalBack);
+                }
+            }
+
+            // Center Fan
+            double zCenter = flat ? 0 : ehClip(grid[1][0], 0, rclip);
+            if (finalBack && !flat) zCenter = Math.min(zCenter, 0.1);
             for (int j = 0; j < SGBaseBlockEntity.ehGridPolarSize; j++) {
-                ehVertexQuad(vc, pose, normal, grid, i, j, rclip, ehBandWidth, combinedLight, flat, back);
-                ehVertexQuad(vc, pose, normal, grid, i + 1, j, rclip, ehBandWidth, combinedLight, flat, back);
-                ehVertexQuad(vc, pose, normal, grid, i + 1, j + 1, rclip, ehBandWidth, combinedLight, flat, back);
-                ehVertexQuad(vc, pose, normal, grid, i, j + 1, rclip, ehBandWidth, combinedLight, flat, back);
+                ehVertexQuad(vc, matrixPose, normal, grid, 1, j, rclip, ehBandWidth, combinedLight, flat, finalBack);
+                ehVertexQuad(vc, matrixPose, normal, grid, 1, j + 1, rclip, ehBandWidth, combinedLight, flat, finalBack);
+                for (int k = 0; k < 2; k++) {
+                    vc.addVertex(matrixPose, 0, 0, (float) zCenter)
+                            .setColor(255, 255, 255, 255)
+                            .setUv(0, 0)
+                            .setOverlay(OverlayTexture.NO_OVERLAY)
+                            .setLight(combinedLight)
+                            .setNormal(0, 0, 1);
+                }
             }
-        }
-
-        // Center Fan
-        double zCenter = flat ? 0 : ehClip(grid[1][0], 0, rclip);
-        if (back && !flat) zCenter = Math.min(zCenter, 0.1);
-        for (int j = 0; j < SGBaseBlockEntity.ehGridPolarSize; j++) {
-            ehVertexQuad(vc, pose, normal, grid, 1, j, rclip, ehBandWidth, combinedLight, flat, back);
-            ehVertexQuad(vc, pose, normal, grid, 1, j + 1, rclip, ehBandWidth, combinedLight, flat, back);
-            for (int k = 0; k < 2; k++) {
-                vc.addVertex(pose, 0, 0, (float) zCenter)
-                        .setColor(255, 255, 255, 255)
-                        .setUv(0, 0)
-                        .setOverlay(OverlayTexture.NO_OVERLAY)
-                        .setLight(combinedLight)
-                        .setNormal(0, 0, 1);
-            }
-        }
+        });
         poseStack.popPose();
     }
 
@@ -194,9 +216,7 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
 
 
 
-    private void renderIris(SGBaseBlockEntity te, float partialTicks, PoseStack poseStack, MultiBufferSource buffer, int light) {
-        VertexConsumer vc = buffer.getBuffer(RenderType.entityCutout(IRIS_TEXTURE));
-        
+    private void renderIris(SGBaseBlockEntity te, float partialTicks, PoseStack poseStack, net.minecraft.client.renderer.OrderedSubmitNodeCollector ordered, int light) {
         float t = net.minecraft.util.Mth.lerp(partialTicks, te.prevIrisPhase, te.irisPhase);
         double aperture = t * t;
         
@@ -204,15 +224,18 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
         double oldU0 = u0, oldV0 = v0;
         u0 = 0; v0 = 0;
         
-        for (int i = 0; i < NUM_IRIS_BLADES; i++) {
-            renderIrisBlade(vc, poseStack, aperture, light, i, NUM_IRIS_BLADES);
-        }
+        final double finalAperture = aperture;
+        ordered.submitCustomGeometry(poseStack, RenderTypes.entityCutout(IRIS_TEXTURE), (pose, vc) -> {
+            for (int i = 0; i < NUM_IRIS_BLADES; i++) {
+                renderIrisBlade(vc, pose, finalAperture, light, i, NUM_IRIS_BLADES);
+            }
+        });
         
         // Restore atlas UVs
         u0 = oldU0; v0 = oldV0;
     }
 
-    private void renderIrisBlade(VertexConsumer vc, PoseStack poseStack, double aperture, int light, int i, int n) {
+    private void renderIrisBlade(VertexConsumer vc, PoseStack.Pose pose, double aperture, int light, int i, int n) {
         double angleStep = 360.0 / n;
         double rad = Math.PI / 180.0;
         float p2x = (float) (2.3 * Math.cos(rad * (angleStep * i)));
@@ -233,20 +256,20 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
 
         double z0 = 0.01;
         double z1 = 0.1;
-        Matrix4f pose = poseStack.last().pose();
-        Matrix3f normal = poseStack.last().normal();
+        Matrix4f matrixPose = pose.pose();
+        Matrix3f normal = pose.normal();
 
         // Front face
-        vertex(vc, pose, normal, light, 0, 0, 1, 255, 255, 255, p1x, p1y, z1, 0, 0);
-        vertex(vc, pose, normal, light, 0, 0, 1, 255, 255, 255, p2x, p2y, z0, 0, 25);
-        vertex(vc, pose, normal, light, 0, 0, 1, 255, 255, 255, p3x, p3y, z0, 0, 0);
-        vertex(vc, pose, normal, light, 0, 0, 1, 255, 255, 255, p4x, p4y, z0, 0, 25);
+        vertex(vc, matrixPose, normal, light, 0, 0, 1, 255, 255, 255, p1x, p1y, z1, 0, 0);
+        vertex(vc, matrixPose, normal, light, 0, 0, 1, 255, 255, 255, p2x, p2y, z0, 0, 25);
+        vertex(vc, matrixPose, normal, light, 0, 0, 1, 255, 255, 255, p3x, p3y, z0, 0, 0);
+        vertex(vc, matrixPose, normal, light, 0, 0, 1, 255, 255, 255, p4x, p4y, z0, 0, 25);
 
         // Back face
-        vertex(vc, pose, normal, light, 0, 0, -1, 255, 255, 255, p1x, p1y, -z1, 0, 0);
-        vertex(vc, pose, normal, light, 0, 0, -1, 255, 255, 255, p4x, p4y, -z0, 0, 25);
-        vertex(vc, pose, normal, light, 0, 0, -1, 255, 255, 255, p3x, p3y, -z0, 0, 0);
-        vertex(vc, pose, normal, light, 0, 0, -1, 255, 255, 255, p2x, p2y, -z0, 0, 25);
+        vertex(vc, matrixPose, normal, light, 0, 0, -1, 255, 255, 255, p1x, p1y, -z1, 0, 0);
+        vertex(vc, matrixPose, normal, light, 0, 0, -1, 255, 255, 255, p4x, p4y, -z0, 0, 25);
+        vertex(vc, matrixPose, normal, light, 0, 0, -1, 255, 255, 255, p3x, p3y, -z0, 0, 0);
+        vertex(vc, matrixPose, normal, light, 0, 0, -1, 255, 255, 255, p2x, p2y, -z0, 0, 25);
     }
 
     private void renderRing(VertexConsumer vc, Matrix4f pose, Matrix3f normalMat, int light, double r1, double r2, boolean isOuter, double dz) {
@@ -312,17 +335,15 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
         }
     }
 
-    private void renderChevrons(SGBaseBlockEntity te, float partialTicks, PoseStack poseStack, MultiBufferSource buffer, int light) {
+    private void renderChevrons(SGBaseBlockEntity te, float partialTicks, PoseStack poseStack, net.minecraft.client.renderer.OrderedSubmitNodeCollector ordered, int light) {
         for (int i = 0; i < 9; i++) {
             if ((i == 4 || i == 5) && !te.hasChevronUpgrade) continue;
             float engageAmount = net.minecraft.util.Mth.lerp(partialTicks, te.prevChevronEngageAmount[i], te.chevronEngageAmount[i]);
-            renderChevron(te, i, engageAmount, poseStack, buffer, light);
+            renderChevron(te, i, engageAmount, poseStack, ordered, light);
         }
     }
 
-    private void renderChevron(SGBaseBlockEntity te, int i, float engageAmount, PoseStack poseStack, MultiBufferSource buffer, int light) {
-
-        VertexConsumer vc = buffer.getBuffer(RenderType.entityCutoutNoCull(STARGATE_TEXTURE));
+    private void renderChevron(SGBaseBlockEntity te, int i, float engageAmount, PoseStack poseStack, net.minecraft.client.renderer.OrderedSubmitNodeCollector ordered, int light) {
         float a = 40f;
         
         poseStack.pushPose();
@@ -330,7 +351,10 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
         double displacement = engageAmount * 0.125;
         poseStack.translate(-displacement, 0, 0);
 
-        renderChevron(vc, poseStack.last().pose(), poseStack.last().normal(), light, engageAmount);
+        final float finalEngageAmount = engageAmount;
+        ordered.submitCustomGeometry(poseStack, RenderTypes.entityCutoutNoCull(STARGATE_TEXTURE), (pose, vc) -> {
+            renderChevron(vc, pose.pose(), pose.normal(), light, finalEngageAmount);
+        });
         poseStack.popPose();
     }
 
@@ -463,55 +487,61 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
     }
 
     @Override
-    public boolean shouldRenderOffScreen(SGBaseBlockEntity te) {
-        return true;
-    }
-
-    @Override
-    public boolean shouldRender(SGBaseBlockEntity te, Vec3 pos) {
-        return true;
-    }
-
-    @Override
     public net.minecraft.world.phys.AABB getRenderBoundingBox(SGBaseBlockEntity blockEntity) {
         return new net.minecraft.world.phys.AABB(blockEntity.getBlockPos()).inflate(5.0);
     }
 
-    @Override
-    public int getViewDistance() {
-        return 256;
-    }
-
-    private void renderCamouflage(SGBaseBlockEntity te, PoseStack poseStack, MultiBufferSource buffer, int light, int overlay, Direction facing) {
-        net.minecraft.client.renderer.block.BlockRenderDispatcher dispatcher = net.minecraft.client.Minecraft.getInstance().getBlockRenderer();
+    private void renderCamouflage(SGBaseBlockEntity te, PoseStack poseStack, net.minecraft.client.renderer.OrderedSubmitNodeCollector ordered, int light, int overlay, Direction facing) {
         for (int i = 0; i < 5; i++) {
             net.minecraft.world.item.ItemStack stack = te.inventory.getStackInSlot(i);
             if (stack.isEmpty() || !(stack.getItem() instanceof net.minecraft.world.item.BlockItem blockItem)) continue;
 
             poseStack.pushPose();
-            int lateralOffset = i - 2;
+            int lateralOffset = i - 2; // CORRECTED INVERSION (Slot 0 is on player's left, Slot 4 is on player's right)
             int idx = 0, idz = 0;
             switch (facing) {
                 case NORTH -> idx = -lateralOffset;
                 case SOUTH -> idx = lateralOffset;
-                case WEST -> idz = -lateralOffset;
-                case EAST -> idz = lateralOffset;
+                case WEST -> idz = lateralOffset;    // RESTORED CORRECT MAPPING (Confirmed by user)
+                case EAST -> idz = -lateralOffset;   // RESTORED CORRECT MAPPING (Confirmed by user)
                 default -> {}
             }
             
-            net.minecraft.core.BlockPos worldPos = te.getBlockPos().offset(idx, 0, idz);
             poseStack.translate(idx - 0.5, -2.5, idz - 0.5);
 
             BlockState state = blockItem.getBlock().defaultBlockState();
-            net.minecraft.client.resources.model.BakedModel model = dispatcher.getBlockModel(state);
-            long seed = state.getSeed(worldPos);
-            net.minecraft.util.RandomSource random = net.minecraft.util.RandomSource.create(seed);
+            net.minecraft.core.BlockPos camoPos = te.getBlockPos().offset(idx, 0, idz);
 
-            for (net.minecraft.client.renderer.RenderType rt : model.getRenderTypes(state, random, net.neoforged.neoforge.client.model.data.ModelData.EMPTY)) {
-                com.mojang.blaze3d.vertex.VertexConsumer vc = buffer.getBuffer(rt);
-                dispatcher.getModelRenderer().tesselateBlock(
-                    te.getLevel(), model, state, worldPos, poseStack, vc, true, random, seed, overlay, net.neoforged.neoforge.client.model.data.ModelData.EMPTY, rt
-                );
+            if (te.getLevel() != null) {
+                net.minecraft.client.renderer.block.BlockRenderDispatcher blockRenderer = net.minecraft.client.Minecraft.getInstance().getBlockRenderer();
+                
+                // Get the block's render type
+                net.minecraft.client.renderer.rendertype.RenderType rt = net.minecraft.client.renderer.ItemBlockRenderTypes.getRenderType(state);
+                
+                net.minecraft.client.renderer.block.model.BlockStateModel model = blockRenderer.getBlockModel(state);
+                
+                // Render the block natively using submitCustomGeometry and ModelBlockRenderer.tesselateBlock with checkSides = false to ensure perfect lighting and shadows!
+                ordered.submitCustomGeometry(poseStack, rt, (pose, vc) -> {
+                    com.mojang.blaze3d.vertex.PoseStack callbackStack = new com.mojang.blaze3d.vertex.PoseStack();
+                    callbackStack.last().set(pose);
+                    
+                    java.util.List<net.minecraft.client.renderer.block.model.BlockModelPart> parts = model.collectParts(
+                        te.getLevel(), camoPos, state, net.minecraft.util.RandomSource.create(state.getSeed(camoPos))
+                    );
+                    
+                    blockRenderer.getModelRenderer().tesselateBlock(
+                        te.getLevel(),
+                        parts,
+                        state,
+                        camoPos,
+                        callbackStack,
+                        type -> vc,
+                        false, // checkSides = false to bypass ambient occlusion culling inside solid Stargate blocks
+                        overlay
+                    );
+                });
+            } else {
+                ordered.submitBlock(poseStack, state, light, overlay, 0);
             }
 
             poseStack.popPose();

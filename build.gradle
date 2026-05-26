@@ -3,7 +3,7 @@ plugins {
     id "eclipse"
     id "idea"
     id "maven-publish"
-    id "net.neoforged.moddev" version "2.0.74"
+    id "net.neoforged.moddev" version "2.0.123"
 }
 
 version = mod_version
@@ -28,8 +28,8 @@ neoForge {
             programArgument "--nogui"
             systemProperty "neoforge.enabledGameTestNamespaces", project.mod_id
         }
-        data {
-            data()
+        clientData {
+            clientData()
             programArguments.addAll "--mod", project.mod_id, "--all", "--output", file("src/generated/resources/").getAbsolutePath(), "--existing", file("src/main/resources/").getAbsolutePath()
         }
     }
@@ -61,3 +61,6 @@ tasks.withType(ProcessResources).configureEach {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = "UTF-8"
 }
+
+
+

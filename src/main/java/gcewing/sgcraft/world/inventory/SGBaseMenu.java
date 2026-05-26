@@ -13,6 +13,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.SlotItemHandler;
 
+@SuppressWarnings("removal")
 public class SGBaseMenu extends AbstractContainerMenu {
 
     private final SGBaseBlockEntity blockEntity;
@@ -54,21 +55,13 @@ public class SGBaseMenu extends AbstractContainerMenu {
         if (slot != null && slot.hasItem()) {
             ItemStack itemstack1 = slot.getItem();
             itemstack = itemstack1.copy();
-            if (index < 7) { // From stargate slots (0-6) to player inventory
-                if (!this.moveItemStackTo(itemstack1, 7, this.slots.size(), true)) {
+            if (index < 5) { // From camouflage slots (0-4) to player inventory
+                if (!this.moveItemStackTo(itemstack1, 5, this.slots.size(), true)) {
                     return ItemStack.EMPTY;
                 }
-            } else { // From player inventory to stargate slots
-                // Try upgrades first
-                if (itemstack1.is(gcewing.sgcraft.registry.ModItems.SG_CHEVRON_UPGRADE.get())) {
-                    if (!this.moveItemStackTo(itemstack1, 5, 6, false)) return ItemStack.EMPTY;
-                } else if (itemstack1.is(gcewing.sgcraft.registry.ModItems.SG_IRIS_UPGRADE.get())) {
-                    if (!this.moveItemStackTo(itemstack1, 6, 7, false)) return ItemStack.EMPTY;
-                } else {
-                    // Try camouflage
-                    if (!this.moveItemStackTo(itemstack1, 0, 5, false)) {
-                        return ItemStack.EMPTY;
-                    }
+            } else { // From player inventory to camouflage slots
+                if (!this.moveItemStackTo(itemstack1, 0, 5, false)) {
+                    return ItemStack.EMPTY;
                 }
             }
 

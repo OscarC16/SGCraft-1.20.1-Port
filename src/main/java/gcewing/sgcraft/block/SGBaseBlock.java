@@ -71,37 +71,19 @@ public class SGBaseBlock extends BaseEntityBlock {
     @Override
     public RenderShape getRenderShape(BlockState state) {
         if (state.getValue(SGBlockStates.MERGED))
-            return RenderShape.ENTITYBLOCK_ANIMATED;
+            return RenderShape.INVISIBLE;
         return RenderShape.MODEL;
     }
 
-    @Override
     public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
         super.onPlace(state, level, pos, oldState, movedByPiston);
-        if (!level.isClientSide) {
+        if (!level.isClientSide() && !state.is(oldState.getBlock())) {
             checkForMerge(level, pos, state);
         }
     }
 
-    @Override
-    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
-        if (!state.is(newState.getBlock())) {
-            BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof SGBaseBlockEntity baseBE) {
-                // 1.5 Cleanup Iris blocks
-                baseBE.removeIrisBlocks();
-                // 2. Unmerge structure
-                unmerge(level, pos);
-                for (int i = 0; i < baseBE.inventory.getSlots(); i++) {
-                    net.minecraft.world.item.ItemStack stack = baseBE.inventory.getStackInSlot(i);
-                    if (!stack.isEmpty()) {
-                        net.minecraft.world.Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), stack);
-                    }
-                }
-            }
-            super.onRemove(state, level, pos, newState, isMoving);
-        }
-    }
+
+
 
     @Override
     public float getDestroyProgress(BlockState state, net.minecraft.world.entity.player.Player player, net.minecraft.world.level.BlockGetter level, BlockPos pos) {
@@ -120,7 +102,7 @@ public class SGBaseBlock extends BaseEntityBlock {
 
     @Override
     public net.minecraft.world.InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, net.minecraft.world.entity.player.Player player, net.minecraft.world.phys.BlockHitResult hit) {
-        if (!level.isClientSide) {
+        if (!level.isClientSide()) {
             net.minecraft.world.item.ItemStack stack = player.getItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND);
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof SGBaseBlockEntity baseBE && baseBE.isMerged) {
@@ -244,7 +226,7 @@ public class SGBaseBlock extends BaseEntityBlock {
 
     private void unmergeRingBlock(Level level, BlockPos pos, BlockPos basePos) {
         BlockState state = level.getBlockState(pos);
-        if (state.getBlock() instanceof SGRingBlock || state.getBlock() instanceof SGChevronBlock) {
+        if (state.getBlock() instanceof SGRingBlock) {
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof SGRingBlockEntity ringBE) {
                 if (ringBE.isMerged && (ringBE.basePos.equals(basePos) || ringBE.basePos.equals(BlockPos.ZERO))) {
@@ -255,7 +237,6 @@ public class SGBaseBlock extends BaseEntityBlock {
         }
     }
 
-    @Override
     public boolean propagatesSkylightDown(BlockState state, net.minecraft.world.level.BlockGetter level, BlockPos pos) {
         return true;
     }

@@ -1,7 +1,7 @@
 package gcewing.sgcraft.client.model;
 
 import com.google.gson.Gson;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.client.Minecraft;
 
@@ -23,7 +23,7 @@ public class SmegModel {
 
     private static final Gson GSON = new Gson();
 
-    public static SmegModel fromResource(ResourceLocation location) {
+    public static SmegModel fromResource(Identifier location) {
         try {
             Optional<Resource> resource = Minecraft.getInstance().getResourceManager().getResource(location);
             if (resource.isPresent()) {

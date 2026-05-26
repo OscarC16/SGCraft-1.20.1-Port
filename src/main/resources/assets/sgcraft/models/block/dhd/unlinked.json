@@ -1,7 +1,7 @@
 {
   "loader": "neoforge:obj",
   "model": "sgcraft:models/block/dhd/unlinked.obj",
-  "mtl_override": "sgcraft:models/block/stargate_controller.mtl",
+  "mtl_override": "sgcraft:models/block/dhd/dhd.mtl",
   "flip_v": true,
   "transform": {
     "translation": [ 0.5, 0, 0.5 ]

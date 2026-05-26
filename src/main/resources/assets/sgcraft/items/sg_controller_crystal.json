@@ -1,0 +1,6 @@
+﻿{
+    "model":  {
+                  "model":  "sgcraft:item/sg_controller_crystal",
+                  "type":  "minecraft:model"
+              }
+}

@@ -10,6 +10,10 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.neoforged.neoforge.items.ItemStackHandler;
+import org.jetbrains.annotations.NotNull;
 
 public class DHDBlockEntity extends BlockEntity {
     public enum DHDState {
@@ -24,7 +28,8 @@ public class DHDBlockEntity extends BlockEntity {
     public double maxEnergyBuffer = 2000000;
     public String enteredAddress = "";
     
-    public final net.neoforged.neoforge.items.ItemStackHandler inventory = new net.neoforged.neoforge.items.ItemStackHandler(4) {
+    @SuppressWarnings("removal")
+    public final ItemStackHandler inventory = new ItemStackHandler(4) {
         @Override
         protected void onContentsChanged(int slot) {
             setChanged();
@@ -41,10 +46,10 @@ public class DHDBlockEntity extends BlockEntity {
             if (be instanceof SGBaseBlockEntity targetStargate) {
                 if (targetStargate.isLinkedToController && worldPosition.equals(targetStargate.linkedControllerPos)) {
                     return targetStargate;
-                } else if (!level.isClientSide) {
+                } else if (!level.isClientSide()) {
                     clearLinkToStargate();
                 }
-            } else if (!level.isClientSide) {
+            } else if (!level.isClientSide()) {
                 clearLinkToStargate();
             }
         }
@@ -64,7 +69,7 @@ public class DHDBlockEntity extends BlockEntity {
     public static final int ENERGY_PER_NAQUADAH = 400000;
 
     public void tick(Level level, BlockPos pos, BlockState state) {
-        if (level.isClientSide) return;
+        if (level.isClientSide()) return;
 
         SGBaseBlockEntity stargate = getLinkedStargateTE();
         if (stargate != null) {
@@ -93,7 +98,7 @@ public class DHDBlockEntity extends BlockEntity {
     }
 
     public void checkForLink() {
-        if (level == null || level.isClientSide) return;
+        if (level == null || level.isClientSide()) return;
         if (isLinkedToStargate) return;
 
         BlockPos myPos = this.getBlockPos();
@@ -131,7 +136,7 @@ public class DHDBlockEntity extends BlockEntity {
     }
 
     public void clearLinkToStargate() {
-        if (isLinkedToStargate && level != null && !level.isClientSide) {
+        if (isLinkedToStargate && level != null && !level.isClientSide()) {
             BlockEntity be = level.getBlockEntity(linkedStargatePos);
             if (be instanceof SGBaseBlockEntity stargate) {
                 stargate.isLinkedToController = false;
@@ -143,44 +148,62 @@ public class DHDBlockEntity extends BlockEntity {
         this.isLinkedToStargate = false;
         this.linkedStargatePos = BlockPos.ZERO;
         this.setChanged();
-        if (level != null && !level.isClientSide) {
+        if (level != null && !level.isClientSide()) {
             level.sendBlockUpdated(this.getBlockPos(), getBlockState(), getBlockState(), 3);
         }
     }
 
+    
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.putBoolean("isLinked", isLinkedToStargate);
-        tag.putLong("linkedPos", linkedStargatePos.asLong());
-        tag.putInt("energy", energy);
-        tag.putDouble("energyBuffer", energyInBuffer);
-        tag.put("inventory", inventory.serializeNBT(registries));
+    protected void saveAdditional(@NotNull ValueOutput output) {
+        super.saveAdditional(output);
+        output.putBoolean("isLinked", isLinkedToStargate);
+        output.putLong("linkedPos", linkedStargatePos.asLong());
+        output.putInt("energy", energy);
+        output.putDouble("energyBuffer", energyInBuffer);
+        inventory.serialize(output.child("inventory"));
     }
 
     @Override
-    public void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        isLinkedToStargate = tag.getBoolean("isLinked");
-        linkedStargatePos = BlockPos.of(tag.getLong("linkedPos"));
-        energy = tag.getInt("energy");
-        energyInBuffer = tag.getDouble("energyBuffer");
-        if (tag.contains("inventory")) {
-            inventory.deserializeNBT(registries, tag.getCompound("inventory"));
-        } else if (tag.contains("Inventory")) {
-            inventory.deserializeNBT(registries, tag.getCompound("Inventory"));
+    public void loadAdditional(@NotNull ValueInput input) {
+        super.loadAdditional(input);
+        isLinkedToStargate = input.getBooleanOr("isLinked", false);
+        linkedStargatePos = BlockPos.of(input.getLongOr("linkedPos", 0L));
+        energy = input.getIntOr("energy", 0);
+        energyInBuffer = input.getDoubleOr("energyBuffer", 0.0);
+        if (input.child("inventory").isPresent()) {
+            inventory.deserialize(input.childOrEmpty("inventory"));
         }
     }
 
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = super.getUpdateTag(registries);
-        saveAdditional(tag, registries);
+        tag.putBoolean("isLinked", isLinkedToStargate);
+        tag.putLong("linkedPos", linkedStargatePos.asLong());
+        tag.putInt("energy", energy);
+        tag.putDouble("energyBuffer", energyInBuffer);
         return tag;
     }
 
     @Override
     public Packet<ClientGamePacketListener> getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    @Override
+    public void preRemoveSideEffects(BlockPos pos, BlockState state) {
+        if (this.level != null && !this.level.isClientSide()) {
+            // Drop items
+            for (int i = 0; i < this.inventory.getSlots(); i++) {
+                net.minecraft.world.item.ItemStack stack = this.inventory.getStackInSlot(i);
+                if (!stack.isEmpty()) {
+                    net.minecraft.world.Containers.dropItemStack(this.level, pos.getX(), pos.getY(), pos.getZ(), stack);
+                }
+            }
+            // Clear Stargate link
+            this.clearLinkToStargate();
+        }
+        super.preRemoveSideEffects(pos, state);
     }
 }

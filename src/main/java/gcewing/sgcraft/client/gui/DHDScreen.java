@@ -1,6 +1,5 @@
 package gcewing.sgcraft.client.gui;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import gcewing.sgcraft.SGAddressing;
 import gcewing.sgcraft.SGCraft;
 import gcewing.sgcraft.block.entity.DHDBlockEntity;
@@ -9,15 +8,15 @@ import gcewing.sgcraft.network.DialPacket;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraft.resources.Identifier;
+import net.minecraft.client.renderer.RenderPipelines;
 import org.lwjgl.glfw.GLFW;
 
 public class DHDScreen extends Screen {
 
-    public static final ResourceLocation DHD_GUI_TEXTURE = ResourceLocation.fromNamespaceAndPath(SGCraft.MODID, "textures/gui/dhd_gui.png");
-    public static final ResourceLocation DHD_CENTRE_TEXTURE = ResourceLocation.fromNamespaceAndPath(SGCraft.MODID, "textures/gui/dhd_centre.png");
-    public static final ResourceLocation SYMBOL_TEXTURE = ResourceLocation.fromNamespaceAndPath(SGCraft.MODID, "textures/gui/symbols48.png");
+    public static final Identifier DHD_GUI_TEXTURE = Identifier.fromNamespaceAndPath(SGCraft.MODID, "textures/gui/dhd_gui.png");
+    public static final Identifier DHD_CENTRE_TEXTURE = Identifier.fromNamespaceAndPath(SGCraft.MODID, "textures/gui/dhd_centre.png");
+    public static final Identifier SYMBOL_TEXTURE = Identifier.fromNamespaceAndPath(SGCraft.MODID, "textures/gui/symbols48.png");
 
     private static final int TEXTURE_W = 512;
     private static final int TEXTURE_H = 256;
@@ -31,6 +30,7 @@ public class DHDScreen extends Screen {
     int dhdTop, dhdCentreX, dhdCentreY;
     double buttonRX, buttonRY;
     String enteredAddress = "";
+    double lastMouseX, lastMouseY;
     private final DHDBlockEntity dhd;
 
     public DHDScreen(DHDBlockEntity dhd) {
@@ -62,11 +62,10 @@ public class DHDScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
+        this.lastMouseX = mouseX;
+        this.lastMouseY = mouseY;
         // Manual semi-transparent background without blur
         guiGraphics.fillGradient(0, 0, this.width, this.height, 0x80000000, 0x80000000);
-        
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
 
         drawBackgroundImage(guiGraphics);
         drawOrangeButton(guiGraphics); // This now draws panel then dome
@@ -75,11 +74,15 @@ public class DHDScreen extends Screen {
         drawEnteredString(guiGraphics);
 
         super.render(guiGraphics, mouseX, mouseY, partialTicks);
-        guiGraphics.setColor(1, 1, 1, 1);
     }
 
     void drawBackgroundImage(GuiGraphics guiGraphics) {
-        guiGraphics.blit(DHD_GUI_TEXTURE, (width - dhdWidth) / 2, height - dhdHeight, dhdWidth, dhdHeight, 0, 0, TEXTURE_W, TEXTURE_H, TEXTURE_W, TEXTURE_H);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, DHD_GUI_TEXTURE, 
+            (width - dhdWidth) / 2, height - dhdHeight, 
+            0f, 0f, 
+            dhdWidth, dhdHeight, 
+            512, 256, 
+            TEXTURE_W, TEXTURE_H);
     }
 
     void drawOrangeButton(GuiGraphics guiGraphics) {
@@ -87,20 +90,25 @@ public class DHDScreen extends Screen {
         boolean connected = stargate != null && stargate.isMerged;
         boolean active = connected && stargate.isActive();
 
+        int color;
         if (stargate == null || !stargate.isMerged) {
-            RenderSystem.setShaderColor(0.2f, 0.2f, 0.2f, 1.0f);
+            color = 0xFF333333;
         } else if (active) {
-            RenderSystem.setShaderColor(1.0f, 0.5f, 0.0f, 1.0f);
+            color = 0xFFFF7F00;
         } else {
-            RenderSystem.setShaderColor(0.5f, 0.25f, 0.0f, 1.0f);
+            color = 0xFF7F3F00;
         }
 
-        // Scaled blit for the orange button dome
-        // Source coordinates: 64, 0 (W=64, H=48) in dhd_centre.png (128x64)
-        guiGraphics.blit(DHD_CENTRE_TEXTURE, (int)(dhdCentreX - buttonRX), (int)(dhdCentreY - buttonRY - 6), 
-                         (int)(2 * buttonRX), (int)(1.5 * buttonRY), 
-                         64, 0, 64, 48, 128, 64);
-        RenderSystem.setShaderColor(1, 1, 1, 1);
+        int argb = color | 0xFF000000;
+        int bw = (int)(2 * buttonRX);
+        int bh = (int)(2 * buttonRY);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, DHD_CENTRE_TEXTURE, 
+            (int)(dhdCentreX - buttonRX), (int)(dhdCentreY - buttonRY - 6), 
+            64f, 0f, 
+            bw, bh, 
+            64, 64, 
+            128, 64,
+            argb);
     }
 
     void drawEnteredSymbols(GuiGraphics guiGraphics) {
@@ -118,7 +126,12 @@ public class DHDScreen extends Screen {
 
             int row = s / 10;
             int col = s % 10;
-            guiGraphics.blit(SYMBOL_TEXTURE, x0 + i * cellSize, y0, cellSize, cellSize, (float)(col * 48), (float)(row * 48), 48, 48, 512, 256);
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SYMBOL_TEXTURE, 
+                x0 + i * cellSize, y0, 
+                (float)(col * 48), (float)(row * 48), 
+                cellSize, cellSize, 
+                48, 48, 
+                512, 256);
         }
     }
 
@@ -129,48 +142,51 @@ public class DHDScreen extends Screen {
         }
 
         int addressLength = stargate.getNumChevrons();
-        String padded = SGAddressing.padAddress(enteredAddress, "|", addressLength);
-        guiGraphics.drawCenteredString(this.font, padded, width / 2, dhdTop - 20, 0xffffff);
+        String padded = SGAddressing.padAddress(enteredAddress, "-", addressLength);
+        guiGraphics.drawCenteredString(this.font, padded, width / 2, dhdTop - 20, 0xFFFFFFFF);
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0) {
-            int i = findDHDButton((int)mouseX, (int)mouseY);
+    public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean isDouble) {
+        if (event.button() == 0) {
+            int i = findDHDButton((int)event.x(), (int)event.y());
             if (i >= 0) {
                 dhdButtonPressed(i);
                 return true;
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, isDouble);
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+    public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+        if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
             this.onClose();
             return true;
         }
-        if (keyCode == GLFW.GLFW_KEY_BACKSPACE) {
+        if (event.key() == GLFW.GLFW_KEY_BACKSPACE) {
             backspace();
             return true;
         }
-        if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+        if (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) {
             orangeButtonPressed();
             return true;
         }
-
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(event);
     }
 
     @Override
-    public boolean charTyped(char codePoint, int modifiers) {
-        String C = String.valueOf(codePoint).toUpperCase();
-        if (SGAddressing.isValidSymbolChar(C)) {
-            enterCharacter(C.charAt(0));
-            return true;
+    public boolean charTyped(net.minecraft.client.input.CharacterEvent event) {
+        SGBaseBlockEntity stargate = dhd.getLinkedStargateTE();
+        boolean active = stargate != null && stargate.isActive();
+        if (!active) {
+            String C = String.valueOf(event.codepointAsString()).toUpperCase();
+            if (SGAddressing.isValidSymbolChar(C)) {
+                enterCharacter(C.charAt(0));
+                return true;
+            }
         }
-        return super.charTyped(codePoint, modifiers);
+        return super.charTyped(event);
     }
 
     private void playClickSound() {
@@ -203,12 +219,17 @@ public class DHDScreen extends Screen {
     }
 
     void dhdButtonPressed(int i) {
+        SGBaseBlockEntity stargate = dhd.getLinkedStargateTE();
+        boolean active = stargate != null && stargate.isActive();
+        
         if (i == 0) {
             orangeButtonPressed();
-        } else if (i < 37) {
-            enterCharacter(SGAddressing.symbolToChar(i - 1));
-        } else {
-            backspace();
+        } else if (!active) {
+            if (i < 37) {
+                enterCharacter(SGAddressing.symbolToChar(i - 1));
+            } else {
+                backspace();
+            }
         }
     }
 
@@ -243,7 +264,11 @@ public class DHDScreen extends Screen {
         playClickSound();
         SGBaseBlockEntity stargate = dhd.getLinkedStargateTE();
         if (stargate != null && stargate.isMerged) {
-            PacketDistributor.sendToServer(new DialPacket(stargate.getBlockPos(), enteredAddress));
+            if (minecraft != null && minecraft.getConnection() != null) {
+                minecraft.getConnection().send(new net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket(
+                    new DialPacket(stargate.getBlockPos(), enteredAddress)
+                ));
+            }
             
             enteredAddress = "";
             updateEnteredAddress();

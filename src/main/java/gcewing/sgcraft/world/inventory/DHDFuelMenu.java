@@ -13,6 +13,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.SlotItemHandler;
 
+@SuppressWarnings("removal")
 public class DHDFuelMenu extends AbstractContainerMenu {
 
     private final DHDBlockEntity blockEntity;

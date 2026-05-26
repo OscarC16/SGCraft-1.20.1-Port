@@ -10,6 +10,10 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import org.jetbrains.annotations.NotNull;
+
 public class SGRingBlockEntity extends BlockEntity {
 
     public boolean isMerged = false;
@@ -38,30 +42,42 @@ public class SGRingBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.putBoolean("isMerged", isMerged);
-        tag.putInt("baseX", basePos.getX());
-        tag.putInt("baseY", basePos.getY());
-        tag.putInt("baseZ", basePos.getZ());
+    protected void saveAdditional(@NotNull ValueOutput output) {
+        super.saveAdditional(output);
+        output.putBoolean("isMerged", isMerged);
+        output.putLong("basePos", basePos.asLong());
     }
 
     @Override
-    public void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        isMerged = tag.getBoolean("isMerged");
-        basePos = new BlockPos(tag.getInt("baseX"), tag.getInt("baseY"), tag.getInt("baseZ"));
+    public void loadAdditional(@NotNull ValueInput input) {
+        super.loadAdditional(input);
+        isMerged = input.getBooleanOr("isMerged", false);
+        basePos = BlockPos.of(input.getLongOr("basePos", 0L));
     }
 
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = super.getUpdateTag(registries);
-        saveAdditional(tag, registries);
+        tag.putBoolean("isMerged", isMerged);
+        tag.putLong("basePos", basePos.asLong());
         return tag;
     }
 
     @Override
     public Packet<ClientGamePacketListener> getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    @Override
+    public void preRemoveSideEffects(BlockPos pos, BlockState state) {
+        if (this.level != null && !this.level.isClientSide()) {
+            if (this.isMerged) {
+                BlockState baseState = this.level.getBlockState(this.basePos);
+                if (baseState.getBlock() instanceof gcewing.sgcraft.block.SGBaseBlock baseBlock) {
+                    baseBlock.unmerge(this.level, this.basePos);
+                }
+            }
+        }
+        super.preRemoveSideEffects(pos, state);
     }
 }

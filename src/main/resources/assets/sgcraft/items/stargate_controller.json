@@ -1,0 +1,9 @@
+{
+    "model": {
+        "type": "minecraft:special",
+        "base": "sgcraft:item/stargate_controller",
+        "model": {
+            "type": "sgcraft:dhd_item_renderer"
+        }
+    }
+}

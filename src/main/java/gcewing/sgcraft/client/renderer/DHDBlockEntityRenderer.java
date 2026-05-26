@@ -7,26 +7,29 @@ import gcewing.sgcraft.SGCraft;
 import gcewing.sgcraft.block.SGBlockStates;
 import gcewing.sgcraft.block.entity.DHDBlockEntity;
 import gcewing.sgcraft.client.model.SmegModel;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.state.BlockState;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
-public class DHDBlockEntityRenderer implements BlockEntityRenderer<DHDBlockEntity> {
+public class DHDBlockEntityRenderer implements BlockEntityRenderer<DHDBlockEntity, DHDBlockEntityRenderer.DHDRenderState> {
+    public static class DHDRenderState extends net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState {
+        public DHDBlockEntity te;
+        public float partialTicks;
+    }
 
-    private static final ResourceLocation MODEL_LOC = ResourceLocation.fromNamespaceAndPath(SGCraft.MODID, "models/dhd.smeg");
-    private static final ResourceLocation TEX_DHD_TOP = ResourceLocation.fromNamespaceAndPath(SGCraft.MODID, "textures/block/dhd/dhd_top.png");
-    private static final ResourceLocation TEX_DHD_SIDE = ResourceLocation.fromNamespaceAndPath(SGCraft.MODID, "textures/block/dhd/dhd_side.png");
-    private static final ResourceLocation TEX_DHD_DETAIL = ResourceLocation.fromNamespaceAndPath(SGCraft.MODID, "textures/block/dhd/dhd_detail.png");
+    private static final Identifier MODEL_LOC = Identifier.fromNamespaceAndPath(SGCraft.MODID, "models/dhd.smeg");
+    private static final Identifier TEX_DHD_TOP = Identifier.fromNamespaceAndPath(SGCraft.MODID, "textures/block/dhd/dhd_top.png");
+    private static final Identifier TEX_DHD_SIDE = Identifier.fromNamespaceAndPath(SGCraft.MODID, "textures/block/dhd/dhd_side.png");
+    private static final Identifier TEX_DHD_DETAIL = Identifier.fromNamespaceAndPath(SGCraft.MODID, "textures/block/dhd/dhd_detail.png");
 
-    private static final ResourceLocation[] TEXTURES = {
+    private static final Identifier[] TEXTURES = {
         TEX_DHD_TOP, TEX_DHD_SIDE, TEX_DHD_DETAIL, TEX_DHD_DETAIL
     };
 
@@ -36,7 +39,24 @@ public class DHDBlockEntityRenderer implements BlockEntityRenderer<DHDBlockEntit
     }
 
     @Override
-    public void render(DHDBlockEntity te, float partialTicks, PoseStack stack, MultiBufferSource buffer, int combinedLight, int combinedOverlay) {
+    public DHDRenderState createRenderState() {
+        return new DHDRenderState();
+    }
+
+    @Override
+    public void extractRenderState(DHDBlockEntity te, DHDRenderState state, float partialTicks, net.minecraft.world.phys.Vec3 pos, net.minecraft.client.renderer.feature.ModelFeatureRenderer.CrumblingOverlay overlay) {
+        state.te = te;
+        state.partialTicks = partialTicks;
+        net.minecraft.client.renderer.blockentity.BlockEntityRenderer.super.extractRenderState(te, state, partialTicks, pos, overlay);
+    }
+
+    @Override
+    public void submit(DHDRenderState state, PoseStack poseStack, net.minecraft.client.renderer.SubmitNodeCollector collector, net.minecraft.client.renderer.state.CameraRenderState cameraState) {
+        net.minecraft.client.renderer.OrderedSubmitNodeCollector ordered = collector.order(state.lightCoords);
+        renderInternal(state.te, state.partialTicks, poseStack, ordered, state.lightCoords, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY);
+    }
+
+    public void renderInternal(DHDBlockEntity te, float partialTicks, PoseStack poseStack, net.minecraft.client.renderer.OrderedSubmitNodeCollector ordered, int combinedLight, int combinedOverlay) {
         if (model == null) {
             model = SmegModel.fromResource(MODEL_LOC);
         }
@@ -45,8 +65,8 @@ public class DHDBlockEntityRenderer implements BlockEntityRenderer<DHDBlockEntit
         BlockState state = te.getBlockState();
         Direction facing = state.getValue(SGBlockStates.FACING);
 
-        stack.pushPose();
-        stack.translate(0.5, 0, 0.5);
+        poseStack.pushPose();
+        poseStack.translate(0.5, 0, 0.5);
         
         float rotation = switch (facing) {
             case SOUTH -> 0f;
@@ -55,11 +75,10 @@ public class DHDBlockEntityRenderer implements BlockEntityRenderer<DHDBlockEntit
             case WEST -> 270f;
             default -> 0f;
         };
-        stack.mulPose(Axis.YP.rotationDegrees(rotation));
+        poseStack.mulPose(Axis.YP.rotationDegrees(rotation));
 
         for (int i = 0; i < model.groupedFaces.length; i++) {
             if (i >= TEXTURES.length) break;
-            VertexConsumer builder = buffer.getBuffer(RenderType.entityCutout(TEXTURES[i]));
             
             int faceLight = combinedLight;
             float uOffset = 0, vOffset = 0, scale = 1.0f;
@@ -78,15 +97,22 @@ public class DHDBlockEntityRenderer implements BlockEntityRenderer<DHDBlockEntit
                 scale = 0.5f;
             }
             
-            renderFaces(stack, builder, model.groupedFaces[i], faceLight, uOffset, vOffset, scale);
+            final int finalFaceLight = faceLight;
+            final float finalUOffset = uOffset;
+            final float finalVOffset = vOffset;
+            final float finalScale = scale;
+            final int faceIndex = i;
+            ordered.submitCustomGeometry(poseStack, RenderTypes.entityCutout(TEXTURES[i]), (pose, consumer) -> {
+                renderFaces(pose, consumer, model.groupedFaces[faceIndex], finalFaceLight, finalUOffset, finalVOffset, finalScale);
+            });
         }
 
-        stack.popPose();
+        poseStack.popPose();
     }
 
-    private void renderFaces(PoseStack stack, VertexConsumer builder, SmegModel.Face[] faces, int light, float uOff, float vOff, float scale) {
-        Matrix4f matrix = stack.last().pose();
-        Matrix3f normal = stack.last().normal();
+    private void renderFaces(PoseStack.Pose pose, VertexConsumer builder, SmegModel.Face[] faces, int light, float uOff, float vOff, float scale) {
+        Matrix4f matrix = pose.pose();
+        Matrix3f normal = pose.normal();
 
         for (SmegModel.Face face : faces) {
             for (int[] tri : face.triangles) {

@@ -12,7 +12,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import org.slf4j.Logger;
 
-@EventBusSubscriber(modid = SGCraft.MODID, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = SGCraft.MODID)
 public class ModNetwork {
 
     private static final Logger LOGGER = LogUtils.getLogger();

@@ -6,11 +6,11 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public record DialPacket(BlockPos pos, String address) implements CustomPacketPayload {
 
-    public static final Type<DialPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(SGCraft.MODID, "dial"));
+    public static final Type<DialPacket> TYPE = new Type<>(Identifier.fromNamespaceAndPath(SGCraft.MODID, "dial"));
 
     public static final StreamCodec<FriendlyByteBuf, DialPacket> STREAM_CODEC = StreamCodec.composite(
         BlockPos.STREAM_CODEC, DialPacket::pos,

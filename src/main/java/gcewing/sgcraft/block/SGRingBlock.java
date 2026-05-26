@@ -60,29 +60,14 @@ public class SGRingBlock extends BaseEntityBlock {
         return super.getDestroyProgress(state, player, level, pos);
     }
 
-    @Override
+    
     public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
         super.onPlace(state, level, pos, oldState, movedByPiston);
-        if (!level.isClientSide) {
+        if (!level.isClientSide() && !state.is(oldState.getBlock())) {
             searchForBaseBlocks(level, pos);
         }
     }
 
-    @Override
-    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
-        if (!state.is(newState.getBlock())) {
-            if (!level.isClientSide) {
-                BlockEntity be = level.getBlockEntity(pos);
-                if (be instanceof SGRingBlockEntity ringBE && ringBE.isMerged) {
-                    BlockState baseState = level.getBlockState(ringBE.basePos);
-                    if (baseState.getBlock() instanceof SGBaseBlock baseBlock) {
-                        baseBlock.unmerge(level, ringBE.basePos);
-                    }
-                }
-            }
-        }
-        super.onRemove(state, level, pos, newState, movedByPiston);
-    }
 
     @Override
     public net.minecraft.world.InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, net.minecraft.world.entity.player.Player player, net.minecraft.world.phys.BlockHitResult hit) {

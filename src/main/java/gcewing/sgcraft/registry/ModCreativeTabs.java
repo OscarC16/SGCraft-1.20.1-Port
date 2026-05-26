@@ -23,7 +23,7 @@ public class ModCreativeTabs {
                 output.accept(ModBlocks.STARGATE_RING.get());
                 output.accept(ModBlocks.STARGATE_CHEVRON.get());
                 output.accept(ModBlocks.STARGATE_BASE.get());
-                output.accept(ModBlocks.STARGATE_CONTROLLER.get());
+                output.accept(ModItems.STARGATE_CONTROLLER_ITEM.get());
                 output.accept(ModItems.SG_CORE_CRYSTAL.get());
                 output.accept(ModItems.SG_CONTROLLER_CRYSTAL.get());
                 output.accept(ModItems.SG_CHEVRON_UPGRADE.get());

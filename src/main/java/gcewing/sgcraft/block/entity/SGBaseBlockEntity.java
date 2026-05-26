@@ -9,16 +9,14 @@ import gcewing.sgcraft.registry.ModSounds;
 import gcewing.sgcraft.world.SGNetwork;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.Connection;
+import org.jetbrains.annotations.NotNull;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -27,13 +25,12 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.portal.DimensionTransition;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
 import java.util.List;
 
+@SuppressWarnings({"deprecation", "removal"})
 public class SGBaseBlockEntity extends BlockEntity {
 
     public enum State {
@@ -159,21 +156,21 @@ public class SGBaseBlockEntity extends BlockEntity {
     @Override
     public void onLoad() {
         super.onLoad();
-        if (level != null && !level.isClientSide && level instanceof ServerLevel serverLevel) {
+        if (level != null && !level.isClientSide() && level instanceof ServerLevel serverLevel) {
             serverLevel.setChunkForced(worldPosition.getX() >> 4, worldPosition.getZ() >> 4, true);
         }
     }
 
     @Override
     public void setRemoved() {
-        if (level != null && !level.isClientSide && level instanceof ServerLevel serverLevel) {
+        if (level != null && !level.isClientSide() && level instanceof ServerLevel serverLevel) {
             serverLevel.setChunkForced(worldPosition.getX() >> 4, worldPosition.getZ() >> 4, false);
         }
         super.setRemoved();
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, SGBaseBlockEntity te) {
-        if (level.isClientSide) {
+        if (level.isClientSide()) {
             te.updateAnimation();
             return;
         }
@@ -199,7 +196,7 @@ public class SGBaseBlockEntity extends BlockEntity {
     private int clientDialTicks = 0;
 
     private void updateRingLighting(boolean lit) {
-        if (level == null || level.isClientSide)
+        if (level == null || level.isClientSide())
             return;
         Direction facing = getBlockState().getValue(gcewing.sgcraft.block.SGBlockStates.FACING);
         Direction.Axis axis = facing.getAxis();
@@ -455,7 +452,7 @@ public class SGBaseBlockEntity extends BlockEntity {
     }
 
     public void updateHomeAddress() {
-        if (level != null && !level.isClientSide) {
+        if (level != null && !level.isClientSide()) {
             int dimIndex = getDimensionIndex(level);
             this.homeAddress = gcewing.sgcraft.SGAddressing.addressForLocation(worldPosition, dimIndex);
             SGNetwork.get(level).register(homeAddress, level.dimension(), worldPosition);
@@ -471,7 +468,7 @@ public class SGBaseBlockEntity extends BlockEntity {
             return 1;
         if (dim == Level.END)
             return 2;
-        return Math.abs(dim.location().toString().hashCode() % gcewing.sgcraft.SGAddressing.DIMENSION_RANGE);
+        return Math.abs(dim.identifier().toString().hashCode() % gcewing.sgcraft.SGAddressing.DIMENSION_RANGE);
     }
 
     public void connectOrDisconnect(String address, ServerPlayer player) {
@@ -517,6 +514,17 @@ public class SGBaseBlockEntity extends BlockEntity {
                 return;
             }
 
+            // 5.5. Energy Check
+            int openingCost = ENERGY_OPEN_WORMHOLE;
+            if (isInterDimensional) {
+                openingCost *= INTER_DIMENSION_MULTIPLIER;
+            }
+            if (this.energy < openingCost) {
+                player.sendSystemMessage(Component.literal("Error: Energía insuficiente para iniciar la conexión."));
+                level.playSound(null, worldPosition, ModSounds.STARGATE_ABORT.get(), SoundSource.BLOCKS, 0.5f, 1.0f);
+                return;
+            }
+
             // 6. Start mutual dialing sequence
             String returnAddress = this.homeAddress;
             if (address.length() == 7) {
@@ -530,7 +538,7 @@ public class SGBaseBlockEntity extends BlockEntity {
     }
 
     private void completeDialing() {
-        if (level.isClientSide)
+        if (level.isClientSide())
             return;
 
         this.state = State.Transient;
@@ -555,7 +563,7 @@ public class SGBaseBlockEntity extends BlockEntity {
     }
 
     public void startDialing(String address, BlockPos targetPos, ResourceKey<Level> targetDim, boolean isIncoming) {
-        if (!level.isClientSide) {
+        if (!level.isClientSide()) {
             // Check opening cost for origin gate
             if (!isIncoming) {
                 int openingCost = ENERGY_OPEN_WORMHOLE;
@@ -603,7 +611,7 @@ public class SGBaseBlockEntity extends BlockEntity {
     }
 
     public void onKawoosh() {
-        if (level == null || level.isClientSide)
+        if (level == null || level.isClientSide())
             return;
 
         Direction facing = getBlockState().getValue(SGBlockStates.FACING);
@@ -689,17 +697,20 @@ public class SGBaseBlockEntity extends BlockEntity {
     }
 
     private void checkEntityInteractions() {
-        if (level == null || level.isClientSide || state != State.Connected)
+        if (level == null || level.isClientSide() || state != State.Connected)
             return;
 
         BlockPos center = worldPosition.above(2);
         Direction facing = getBlockState().getValue(SGBlockStates.FACING);
+        double cx = center.getX() + 0.5;
+        double cy = center.getY() + 0.5;
+        double cz = center.getZ() + 0.5;
         AABB ehBox;
 
         if (facing.getAxis() == Direction.Axis.X) {
-            ehBox = new AABB(center).inflate(0.01, 2.0, 2.0);
+            ehBox = new AABB(cx - 0.05, cy - 2.0, cz - 2.0, cx + 0.05, cy + 2.0, cz + 2.0);
         } else {
-            ehBox = new AABB(center).inflate(2.0, 2.0, 0.01);
+            ehBox = new AABB(cx - 2.0, cy - 2.0, cz - 0.05, cx + 2.0, cy + 2.0, cz + 0.05);
         }
 
         List<Entity> entities = level.getEntitiesOfClass(Entity.class, ehBox);
@@ -708,7 +719,7 @@ public class SGBaseBlockEntity extends BlockEntity {
                 continue;
             if (entity.isOnPortalCooldown())
                 continue;
-            if (entity.isPassenger() || entity.isVehicle() || !entity.canChangeDimensions(level, level))
+            if (entity.isPassenger() || entity.isVehicle() || !entity.canUsePortal(false))
                 continue;
 
             if (irisPhase >= 0.9f) {
@@ -750,11 +761,9 @@ public class SGBaseBlockEntity extends BlockEntity {
         float targetPitch = entity.getXRot();
 
         if (entity instanceof ServerPlayer player) {
-            player.teleportTo(destLevel, destX, destY, destZ, targetYaw, targetPitch);
+            player.teleportTo(destLevel, destX, destY, destZ, java.util.Set.of(), targetYaw, targetPitch, false);
         } else {
-            entity.changeDimension(new DimensionTransition(
-                    destLevel, new Vec3(destX, destY, destZ), Vec3.ZERO, targetYaw, targetPitch,
-                    DimensionTransition.DO_NOTHING));
+            entity.teleportTo(destLevel, destX, destY, destZ, java.util.Set.of(), targetYaw, targetPitch, false);
         }
         entity.setPortalCooldown();
     }
@@ -764,7 +773,7 @@ public class SGBaseBlockEntity extends BlockEntity {
                 1.0F);
         if (entity instanceof LivingEntity living) {
             living.hurt(level.damageSources().genericKill(), Float.MAX_VALUE);
-            living.kill();
+            living.discard();
         } else {
             entity.discard();
         }
@@ -791,23 +800,23 @@ public class SGBaseBlockEntity extends BlockEntity {
                 irisPhase = 0.0f;
                 irisState = IrisState.CLOSED;
             }
-            if (!level.isClientSide && level.getGameTime() % 5 == 0)
+            if (!level.isClientSide() && level.getGameTime() % 5 == 0)
                 sync();
         } else if (irisState == IrisState.OPENING) {
             irisPhase += 1.0f / IRIS_TIME;
             if (irisPhase >= 1.0f) {
                 irisPhase = 1.0f;
                 irisState = IrisState.OPEN;
-                if (!level.isClientSide)
+                if (!level.isClientSide())
                     removeIrisBlocks();
             }
-            if (!level.isClientSide && level.getGameTime() % 5 == 0)
+            if (!level.isClientSide() && level.getGameTime() % 5 == 0)
                 sync();
         }
     }
 
     private void placeIrisBlocks() {
-        if (level == null || level.isClientSide)
+        if (level == null || level.isClientSide())
             return;
         BlockPos center = worldPosition.above(2);
         Direction facing = getBlockState().getValue(SGBlockStates.FACING);
@@ -830,7 +839,7 @@ public class SGBaseBlockEntity extends BlockEntity {
     }
 
     public void removeIrisBlocks() {
-        if (level == null || level.isClientSide)
+        if (level == null || level.isClientSide())
             return;
         BlockPos center = worldPosition.above(2);
         Direction facing = getBlockState().getValue(SGBlockStates.FACING);
@@ -851,75 +860,85 @@ public class SGBaseBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.putBoolean("isMerged", isMerged);
-        tag.putBoolean("isLinkedToController", isLinkedToController);
-        if (linkedControllerPos != null)
-            tag.putLong("linkedControllerPos", linkedControllerPos.asLong());
-        tag.putInt("energy", energy);
-        tag.putBoolean("hasChevronUpgrade", hasChevronUpgrade);
-        tag.putBoolean("hasIrisUpgrade", hasIrisUpgrade);
-        tag.putString("irisState", irisState.name());
-        tag.putFloat("irisPhase", irisPhase);
-        tag.putDouble("ringAngle", ringAngle);
-        tag.put("inventory", inventory.serializeNBT(registries));
-        tag.putString("state", state.name());
-        tag.putInt("numEngagedChevrons", numEngagedChevrons);
-        tag.putString("dialledAddress", dialledAddress);
-        tag.putInt("dialingStep", dialingStep);
-        tag.putInt("dialTicks", dialTicks);
-        tag.putBoolean("isRingRotating", isRingRotating);
-        tag.putBoolean("isChevronEngaging", isChevronEngaging);
-        tag.putDouble("targetRingAngle", targetRingAngle);
+    protected void saveAdditional(@NotNull ValueOutput output) {
+        super.saveAdditional(output);
+        output.putBoolean("isMerged", isMerged);
+        output.putBoolean("isLinkedToController", isLinkedToController);
+        output.putLong("linkedControllerPos", linkedControllerPos.asLong());
+        output.putInt("energy", energy);
+        output.putBoolean("hasChevronUpgrade", hasChevronUpgrade);
+        output.putBoolean("hasIrisUpgrade", hasIrisUpgrade);
+        output.putString("irisState", irisState.name());
+        output.putFloat("irisPhase", irisPhase);
+        output.putString("state", state.name());
+        output.putDouble("ringAngle", ringAngle);
+        
+        inventory.serialize(output.child("inventory"));
+        
+        output.putInt("numEngagedChevrons", numEngagedChevrons);
+        output.putString("dialledAddress", dialledAddress);
+        output.putInt("dialingStep", dialingStep);
+        output.putInt("dialTicks", dialTicks);
+        output.putBoolean("isRingRotating", isRingRotating);
+        output.putBoolean("isChevronEngaging", isChevronEngaging);
+        output.putDouble("targetRingAngle", targetRingAngle);
+        
         if (targetPos != null)
-            tag.putLong("targetPos", targetPos.asLong());
+            output.putLong("targetPos", targetPos.asLong());
         if (targetDimension != null)
-            tag.putString("targetDim", targetDimension.location().toString());
-        tag.putBoolean("isIncoming", isIncoming);
-        tag.putString("homeAddress", homeAddress);
+            output.putString("targetDim", targetDimension.identifier().toString());
+            
+        output.putBoolean("isIncoming", isIncoming);
+        output.putString("homeAddress", homeAddress);
     }
 
     @Override
-    public void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        isMerged = tag.getBoolean("isMerged");
-        isLinkedToController = tag.getBoolean("isLinkedToController");
-        linkedControllerPos = BlockPos.of(tag.getLong("linkedControllerPos"));
-        energy = tag.getInt("energy");
-        hasChevronUpgrade = tag.getBoolean("hasChevronUpgrade");
-        hasIrisUpgrade = tag.getBoolean("hasIrisUpgrade");
-        if (tag.contains("irisState"))
-            irisState = IrisState.valueOf(tag.getString("irisState"));
-        irisPhase = tag.getFloat("irisPhase");
-        if (tag.contains("state"))
-            state = State.valueOf(tag.getString("state"));
-        double newRingAngle = tag.getDouble("ringAngle");
-        if (level == null || !level.isClientSide || state != State.Dialing) {
+    public void loadAdditional(@NotNull ValueInput input) {
+        super.loadAdditional(input);
+        isMerged = input.getBooleanOr("isMerged", false);
+        isLinkedToController = input.getBooleanOr("isLinkedToController", false);
+        linkedControllerPos = net.minecraft.core.BlockPos.of(input.getLongOr("linkedControllerPos", 0L));
+        energy = input.getIntOr("energy", 0);
+        hasChevronUpgrade = input.getBooleanOr("hasChevronUpgrade", false);
+        hasIrisUpgrade = input.getBooleanOr("hasIrisUpgrade", false);
+        
+        String isStr = input.getStringOr("irisState", "");
+        if (!isStr.isEmpty()) irisState = IrisState.valueOf(isStr);
+        
+        irisPhase = input.getFloatOr("irisPhase", 1.0f);
+        
+        String stStr = input.getStringOr("state", "");
+        if (!stStr.isEmpty()) state = State.valueOf(stStr);
+        
+        double newRingAngle = input.getDoubleOr("ringAngle", 0.0);
+        if (level == null || !level.isClientSide() || state != State.Dialing) {
             ringAngle = newRingAngle;
         }
-        if (tag.contains("inventory"))
-            inventory.deserializeNBT(registries, tag.getCompound("inventory"));
-        numEngagedChevrons = tag.getInt("numEngagedChevrons");
-        dialledAddress = tag.getString("dialledAddress");
-        dialingStep = tag.getInt("dialingStep");
-        // Don't overwrite dialTicks on client during active dial - client manages its
-        // own animation counter
-        if (level == null || !level.isClientSide || state != State.Dialing) {
-            dialTicks = tag.getInt("dialTicks");
+        
+        inventory.deserialize(input.childOrEmpty("inventory"));
+        
+        numEngagedChevrons = input.getIntOr("numEngagedChevrons", 0);
+        dialledAddress = input.getStringOr("dialledAddress", "");
+        dialingStep = input.getIntOr("dialingStep", -1);
+        
+        if (level == null || !level.isClientSide() || state != State.Dialing) {
+            dialTicks = input.getIntOr("dialTicks", 0);
         }
-        isRingRotating = tag.getBoolean("isRingRotating");
-        isChevronEngaging = tag.getBoolean("isChevronEngaging");
-        if (tag.contains("targetRingAngle")) {
-            targetRingAngle = tag.getDouble("targetRingAngle");
+        
+        isRingRotating = input.getBooleanOr("isRingRotating", false);
+        isChevronEngaging = input.getBooleanOr("isChevronEngaging", false);
+        targetRingAngle = input.getDoubleOr("targetRingAngle", 0.0);
+        
+        long tPos = input.getLongOr("targetPos", -1L);
+        if (tPos != -1L) targetPos = net.minecraft.core.BlockPos.of(tPos);
+        
+        String tDim = input.getStringOr("targetDim", "");
+        if (!tDim.isEmpty()) {
+            targetDimension = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, net.minecraft.resources.Identifier.parse(tDim));
         }
-        if (tag.contains("targetPos"))
-            targetPos = BlockPos.of(tag.getLong("targetPos"));
-        if (tag.contains("targetDim"))
-            targetDimension = ResourceKey.create(Registries.DIMENSION,
-                    ResourceLocation.parse(tag.getString("targetDim")));
-        isIncoming = tag.getBoolean("isIncoming");
-        homeAddress = tag.getString("homeAddress");
+        
+        isIncoming = input.getBooleanOr("isIncoming", false);
+        homeAddress = input.getStringOr("homeAddress", "");
         updateUpgrades();
     }
 
@@ -1001,20 +1020,57 @@ public class SGBaseBlockEntity extends BlockEntity {
     }
 
     @Override
-    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-        CompoundTag tag = super.getUpdateTag(registries);
-        saveAdditional(tag, registries);
+    public net.minecraft.nbt.CompoundTag getUpdateTag(net.minecraft.core.HolderLookup.Provider registries) {
+        net.minecraft.nbt.CompoundTag tag = super.getUpdateTag(registries);
+        tag.putBoolean("isMerged", isMerged);
+        tag.putBoolean("isLinkedToController", isLinkedToController);
+        tag.putLong("linkedControllerPos", linkedControllerPos.asLong());
+        tag.putInt("energy", energy);
+        tag.putBoolean("hasChevronUpgrade", hasChevronUpgrade);
+        tag.putBoolean("hasIrisUpgrade", hasIrisUpgrade);
+        tag.putString("irisState", irisState.name());
+        tag.putFloat("irisPhase", irisPhase);
+        tag.putString("state", state.name());
+        tag.putDouble("ringAngle", ringAngle);
+        tag.putInt("numEngagedChevrons", numEngagedChevrons);
+        tag.putString("dialledAddress", dialledAddress);
+        tag.putInt("dialingStep", dialingStep);
+        tag.putInt("dialTicks", dialTicks);
+        tag.putBoolean("isRingRotating", isRingRotating);
+        tag.putBoolean("isChevronEngaging", isChevronEngaging);
+        tag.putDouble("targetRingAngle", targetRingAngle);
+        
+        if (targetPos != null)
+            tag.putLong("targetPos", targetPos.asLong());
+        if (targetDimension != null)
+            tag.putString("targetDim", targetDimension.identifier().toString());
+            
+        tag.putBoolean("isIncoming", isIncoming);
+        tag.putString("homeAddress", homeAddress);
+        net.minecraft.world.level.storage.TagValueOutput output = net.minecraft.world.level.storage.TagValueOutput.createWithContext(net.minecraft.util.ProblemReporter.DISCARDING, registries);
+        inventory.serialize(output);
+        tag.put("inventory", output.buildResult());
         return tag;
+    }
+
+    @Override
+    public void preRemoveSideEffects(BlockPos pos, BlockState state) {
+        if (this.level != null && !this.level.isClientSide()) {
+            for (int i = 0; i < this.inventory.getSlots(); i++) {
+                net.minecraft.world.item.ItemStack stack = this.inventory.getStackInSlot(i);
+                if (!stack.isEmpty()) {
+                    net.minecraft.world.Containers.dropItemStack(this.level, pos.getX(), pos.getY(), pos.getZ(), stack);
+                }
+            }
+            if (state.getBlock() instanceof gcewing.sgcraft.block.SGBaseBlock baseBlock) {
+                baseBlock.unmerge(this.level, pos);
+            }
+        }
+        super.preRemoveSideEffects(pos, state);
     }
 
     @Override
     public Packet<ClientGamePacketListener> getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
-    }
-
-    @Override
-    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt, HolderLookup.Provider registries) {
-        super.onDataPacket(net, pkt, registries);
-        loadAdditional(pkt.getTag(), registries);
     }
 }

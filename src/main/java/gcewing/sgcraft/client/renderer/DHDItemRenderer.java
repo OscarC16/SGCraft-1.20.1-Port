@@ -1,24 +1,46 @@
 package gcewing.sgcraft.client.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.serialization.MapCodec;
 import gcewing.sgcraft.block.entity.DHDBlockEntity;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
-import net.minecraft.client.renderer.MultiBufferSource;
+import gcewing.sgcraft.registry.ModBlocks;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.special.NoDataSpecialModelRenderer;
+import net.minecraft.client.renderer.special.SpecialModelRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.world.item.ItemStack;
-import gcewing.sgcraft.registry.ModBlocks;
+import org.joml.Vector3fc;
+import java.util.function.Consumer;
 
-public class DHDItemRenderer extends BlockEntityWithoutLevelRenderer {
+public class DHDItemRenderer implements NoDataSpecialModelRenderer {
     private final DHDBlockEntity dummy = new DHDBlockEntity(BlockPos.ZERO, ModBlocks.STARGATE_CONTROLLER.get().defaultBlockState());
+    private final DHDBlockEntityRenderer blockEntityRenderer = new DHDBlockEntityRenderer(null);
 
     public DHDItemRenderer() {
-        super(Minecraft.getInstance().getBlockEntityRenderDispatcher(), Minecraft.getInstance().getEntityModels());
     }
 
     @Override
-    public void renderByItem(ItemStack stack, ItemDisplayContext context, PoseStack poseStack, MultiBufferSource buffer, int combinedLight, int combinedOverlay) {
-        Minecraft.getInstance().getBlockEntityRenderDispatcher().renderItem(dummy, poseStack, buffer, combinedLight, combinedOverlay);
+    public void submit(ItemDisplayContext context, PoseStack poseStack, SubmitNodeCollector collector, int light, int overlay, boolean flag, int i) {
+        net.minecraft.client.renderer.OrderedSubmitNodeCollector ordered = collector.order(light);
+        blockEntityRenderer.renderInternal(dummy, 0f, poseStack, ordered, light, overlay);
+    }
+
+    @Override
+    public void getExtents(Consumer<Vector3fc> consumer) {
+        // No-op, typical for custom 3D models with block entity delegates.
+    }
+
+    public static final MapCodec<Unbaked> CODEC = MapCodec.unit(new Unbaked());
+
+    public static class Unbaked implements SpecialModelRenderer.Unbaked {
+        @Override
+        public SpecialModelRenderer<?> bake(net.minecraft.client.renderer.special.SpecialModelRenderer.BakingContext context) {
+            return new DHDItemRenderer();
+        }
+
+        @Override
+        public MapCodec<? extends SpecialModelRenderer.Unbaked> type() {
+            return CODEC;
+        }
     }
 }

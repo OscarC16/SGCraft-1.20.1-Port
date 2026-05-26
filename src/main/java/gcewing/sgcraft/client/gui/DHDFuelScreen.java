@@ -1,33 +1,34 @@
 package gcewing.sgcraft.client.gui;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import gcewing.sgcraft.SGCraft;
 import gcewing.sgcraft.world.inventory.DHDFuelMenu;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.world.entity.player.Inventory;
 
 public class DHDFuelScreen extends SGScreen<DHDFuelMenu> {
 
-    public static final ResourceLocation GUI_TEXTURE = ResourceLocation.fromNamespaceAndPath(SGCraft.MODID, "textures/gui/dhd_fuel_gui.png");
+    public static final Identifier GUI_TEXTURE = Identifier.fromNamespaceAndPath(SGCraft.MODID, "textures/gui/dhd_fuel_gui.png");
 
     public DHDFuelScreen(DHDFuelMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
         this.imageWidth = 256;
         this.imageHeight = 208;
+        this.titleLabelY = 1000;
+        this.inventoryLabelY = 1000;
     }
 
     @Override
     protected void renderBg(GuiGraphics guiGraphics, float partialTicks, int mouseX, int mouseY) {
-        RenderSystem.setShaderTexture(0, GUI_TEXTURE);
         int x = (width - imageWidth) / 2;
         int y = (height - imageHeight) / 2;
         
         // Main background
-        guiGraphics.blit(GUI_TEXTURE, x, y, 0, 0, imageWidth, imageHeight, 256, 256);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, GUI_TEXTURE, x, y, 0f, 0f, imageWidth, imageHeight, 256, 256);
 
-        // Fuel Gauge
+        // Fuel Gauge and Title labels
         drawFuelGauge(guiGraphics, x, y);
     }
 
@@ -40,31 +41,25 @@ public class DHDFuelScreen extends SGScreen<DHDFuelMenu> {
         int fuelGaugeY = 84;
         int fuelGaugeU = 0;
         int fuelGaugeV = 208;
-
-        int level = (maxEnergy > 0) ? (int)(fuelGaugeHeight * energy / maxEnergy) : 0;
-        if (level > fuelGaugeHeight) level = fuelGaugeHeight;
-
-        if (level > 0) {
-            // Draw energy bar from bottom up
-            guiGraphics.blit(GUI_TEXTURE, x + fuelGaugeX, y + fuelGaugeY + fuelGaugeHeight - level, 
-                             fuelGaugeU, fuelGaugeV + fuelGaugeHeight - level, 
-                             fuelGaugeWidth, level, 256, 256);
-        }
-    }
-
-    @Override
-    protected void renderLabels(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        int textColor = 0x004c66;
+        int textColor = 0xFF004C66;
         int cx = imageWidth / 2;
         
         String titleStr = Component.translatable("gui.sgcraft.fuel.title").getString();
         String fuelLabel = Component.translatable("gui.sgcraft.fuel.label").getString();
         
-        guiGraphics.drawString(this.font, titleStr, cx - this.font.width(titleStr) / 2, 8, textColor, false);
-        guiGraphics.drawString(this.font, fuelLabel, 150, 96, textColor, false);
+        guiGraphics.drawString(this.font, titleStr, x + cx - this.font.width(titleStr) / 2, y + 8, textColor, false);
+        guiGraphics.drawString(this.font, fuelLabel, x + 150, y + 96, textColor, false);
         
-        // Inventory label
-        guiGraphics.drawString(this.font, this.playerInventoryTitle, 48, 112, 0x404040, false);
+        // Draw green progress/energy bar
+        if (maxEnergy <= 0) maxEnergy = 2000000;
+        double fraction = Math.min(1.0, Math.max(0.0, energy / maxEnergy));
+        int height = (int) (fraction * fuelGaugeHeight);
+        if (height > 0) {
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, GUI_TEXTURE, 
+                x + fuelGaugeX, y + fuelGaugeY + (fuelGaugeHeight - height), 
+                (float) fuelGaugeU, (float) (fuelGaugeV + (fuelGaugeHeight - height)), 
+                fuelGaugeWidth, height, 256, 256);
+        }
     }
 
     @Override
@@ -74,10 +69,15 @@ public class DHDFuelScreen extends SGScreen<DHDFuelMenu> {
         // Tooltip for energy gauge
         int x = (width - imageWidth) / 2;
         int y = (height - imageHeight) / 2;
-        if (mouseX >= x + 214 && mouseX <= x + 214 + 16 && mouseY >= y + 84 && mouseY <= y + 84 + 34) {
-            int energy = (int)menu.getBlockEntity().energyInBuffer;
-            int maxEnergy = (int)menu.getBlockEntity().maxEnergyBuffer;
-            guiGraphics.renderTooltip(this.font, Component.literal(String.format("%d / %d FE", energy, maxEnergy)), mouseX, mouseY);
+        int energyBarX = x + 214;
+        int energyBarY = y + 84;
+        int energyBarWidth = 16;
+        int energyBarHeight = 34;
+        var dhd = menu.getBlockEntity();
+        if (mouseX >= energyBarX && mouseX < energyBarX + energyBarWidth && mouseY >= energyBarY && mouseY < energyBarY + energyBarHeight) {
+            int energy = (int)dhd.energyInBuffer;
+            int maxEnergy = (int)dhd.maxEnergyBuffer;
+            guiGraphics.setComponentTooltipForNextFrame(this.font, java.util.List.of(Component.literal(String.format("%d / %d FE", energy, maxEnergy))), mouseX, mouseY);
         }
 
         renderTooltip(guiGraphics, mouseX, mouseY);
