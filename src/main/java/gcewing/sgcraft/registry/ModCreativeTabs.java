@@ -29,5 +29,6 @@ public class ModCreativeTabs {
                 output.accept(ModItems.SG_CHEVRON_UPGRADE.get());
                 output.accept(ModItems.SG_IRIS_UPGRADE.get());
                 output.accept(ModItems.SG_IRIS_BLADE.get());
+                output.accept(ModItems.STARGATE_PAD.get());
             }).build());
 }

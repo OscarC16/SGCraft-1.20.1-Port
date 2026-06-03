@@ -1,0 +1,25 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "iii",
+        "cpc",
+        "nnn"
+    ],
+    "key": {
+        "i": {
+            "item": "minecraft:iron_ingot"
+        },
+        "c": {
+            "item": "minecraft:glass_pane"
+        },
+        "p": {
+            "item": "sgcraft:sg_controller_crystal"
+        },
+        "n": {
+            "item": "sgcraft:naquadah_ingot"
+        }
+    },
+    "result": {
+        "id": "sgcraft:stargate_pad"
+    }
+}

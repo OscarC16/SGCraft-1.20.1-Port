@@ -26,6 +26,18 @@ public class ModNetwork {
             DialPacket.STREAM_CODEC,
             ModNetwork::handleDialPacket
         );
+
+        registrar.playToClient(
+            OpenPadPacket.TYPE,
+            OpenPadPacket.STREAM_CODEC,
+            ModNetwork::handleOpenPadPacket
+        );
+    }
+
+    private static void handleOpenPadPacket(final OpenPadPacket packet, final IPayloadContext context) {
+        context.enqueueWork(() -> {
+            gcewing.sgcraft.client.ClientPacketHandler.handleOpenPadPacket(packet, context);
+        });
     }
 
     private static void handleDialPacket(final DialPacket packet, final IPayloadContext context) {

@@ -77,6 +77,11 @@ public class SGNetwork extends SavedData {
         return null;
     }
 
+    public java.util.Map<String, StargateLocation> getStargates() {
+        return java.util.Collections.unmodifiableMap(stargates);
+    }
+
+
     public static class StargateLocation {
         public final ResourceKey<Level> dimension;
         public final BlockPos pos;
