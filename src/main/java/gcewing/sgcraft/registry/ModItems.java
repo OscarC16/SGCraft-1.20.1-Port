@@ -17,7 +17,7 @@ public class ModItems {
     public static final DeferredItem<Item> SG_CHEVRON_UPGRADE = ITEMS.registerSimpleItem("sg_chevron_upgrade", props -> props.stacksTo(1));
     public static final DeferredItem<Item> SG_IRIS_UPGRADE = ITEMS.registerSimpleItem("sg_iris_upgrade", props -> props.stacksTo(1));
     public static final DeferredItem<Item> SG_IRIS_BLADE = ITEMS.registerSimpleItem("sg_iris_blade", props -> props);
-    public static final DeferredItem<gcewing.sgcraft.item.StargatePadItem> STARGATE_PAD = ITEMS.register("stargate_pad", () -> new gcewing.sgcraft.item.StargatePadItem(new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<gcewing.sgcraft.item.StargatePadItem> STARGATE_PAD = ITEMS.registerItem("stargate_pad", props -> new gcewing.sgcraft.item.StargatePadItem(props.stacksTo(1)));
 
     public static final DeferredItem<BlockItem> NAQUADAH_BLOCK_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.NAQUADAH_BLOCK);
     public static final DeferredItem<BlockItem> NAQUADAH_ORE_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.NAQUADAH_ORE);
