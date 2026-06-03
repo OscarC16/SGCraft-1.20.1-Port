@@ -516,7 +516,12 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
                 net.minecraft.client.renderer.block.BlockRenderDispatcher blockRenderer = net.minecraft.client.Minecraft.getInstance().getBlockRenderer();
                 
                 net.minecraft.client.renderer.block.model.BlockStateModel model = blockRenderer.getBlockModel(state);
-                net.minecraft.client.renderer.chunk.ChunkSectionLayer layer = net.minecraft.client.renderer.ItemBlockRenderTypes.getChunkRenderType(state);
+                java.util.List<net.minecraft.client.renderer.block.model.BlockModelPart> camoParts = model.collectParts(
+                    te.getLevel(), camoPos, state, net.minecraft.util.RandomSource.create(state.getSeed(camoPos))
+                );
+                net.minecraft.client.renderer.chunk.ChunkSectionLayer layer = camoParts.isEmpty()
+                    ? net.minecraft.client.renderer.chunk.ChunkSectionLayer.SOLID
+                    : camoParts.get(0).getRenderType(state);
                 net.minecraft.client.renderer.rendertype.RenderType rt = net.neoforged.neoforge.client.RenderTypeHelper.getEntityRenderType(layer);
                 
                 // Render the block natively using submitCustomGeometry and ModelBlockRenderer.tesselateBlock with checkSides = false to ensure perfect lighting and shadows!
