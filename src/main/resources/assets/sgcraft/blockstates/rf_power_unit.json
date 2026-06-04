@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "sgcraft:block/rf_power_unit"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+    "model":  {
+                  "model":  "sgcraft:item/rf_power_unit",
+                  "type":  "minecraft:model"
+              }
+}

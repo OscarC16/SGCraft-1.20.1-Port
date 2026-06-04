@@ -4,6 +4,7 @@ import gcewing.sgcraft.SGCraft;
 import gcewing.sgcraft.block.entity.SGBaseBlockEntity;
 import gcewing.sgcraft.block.entity.SGRingBlockEntity;
 import gcewing.sgcraft.block.entity.DHDBlockEntity;
+import gcewing.sgcraft.block.entity.RFPowerBlockEntity;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -20,4 +21,7 @@ public class ModBlockEntities {
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DHDBlockEntity>> DHD_BLOCK_ENTITY = 
         BLOCK_ENTITIES.register("dhd_block_entity", () -> new BlockEntityType<>(DHDBlockEntity::new, ModBlocks.STARGATE_CONTROLLER.get()));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<RFPowerBlockEntity>> RF_POWER_UNIT_BLOCK_ENTITY = 
+        BLOCK_ENTITIES.register("rf_power_unit_block_entity", () -> new BlockEntityType<>(RFPowerBlockEntity::new, ModBlocks.RF_POWER_UNIT.get()));
 }

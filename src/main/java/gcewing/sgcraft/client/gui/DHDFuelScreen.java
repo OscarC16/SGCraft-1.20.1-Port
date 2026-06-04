@@ -2,6 +2,7 @@ package gcewing.sgcraft.client.gui;
 
 import gcewing.sgcraft.SGCraft;
 import gcewing.sgcraft.world.inventory.DHDFuelMenu;
+import gcewing.sgcraft.block.entity.SGBaseBlockEntity;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -34,7 +35,7 @@ public class DHDFuelScreen extends SGScreen<DHDFuelMenu> {
 
     private void drawFuelGauge(GuiGraphics guiGraphics, int x, int y) {
         double energy = menu.getBlockEntity().energyInBuffer;
-        double maxEnergy = menu.getBlockEntity().maxEnergyBuffer;
+        double maxEnergy = SGBaseBlockEntity.MAX_ENERGY;
         int fuelGaugeHeight = 34;
         int fuelGaugeWidth = 16;
         int fuelGaugeX = 214;
@@ -76,7 +77,7 @@ public class DHDFuelScreen extends SGScreen<DHDFuelMenu> {
         var dhd = menu.getBlockEntity();
         if (mouseX >= energyBarX && mouseX < energyBarX + energyBarWidth && mouseY >= energyBarY && mouseY < energyBarY + energyBarHeight) {
             int energy = (int)dhd.energyInBuffer;
-            int maxEnergy = (int)dhd.maxEnergyBuffer;
+            int maxEnergy = SGBaseBlockEntity.MAX_ENERGY;
             guiGraphics.setComponentTooltipForNextFrame(this.font, java.util.List.of(Component.literal(String.format("%d / %d FE", energy, maxEnergy))), mouseX, mouseY);
         }
 

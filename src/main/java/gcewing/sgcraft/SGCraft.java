@@ -16,6 +16,7 @@ public class SGCraft {
 
     public SGCraft(IEventBus modEventBus) {
         LOGGER.info("Initializing SGCraft v2.2.2 for Minecraft 1.21.11");
+        gcewing.sgcraft.registry.ModEvents.init(modEventBus);
 
         ModBlocks.BLOCKS.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);

@@ -1,0 +1,33 @@
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.File;
+
+public class ImageResizer {
+    public static void main(String[] args) throws Exception {
+        if (args.length < 3) {
+            System.out.println("Usage: ImageResizer <src> <dest> <size>");
+            return;
+        }
+        File srcFile = new File(args[0]);
+        File destFile = new File(args[1]);
+        int size = Integer.parseInt(args[2]);
+
+        BufferedImage src = ImageIO.read(srcFile);
+        if (src == null) {
+            System.out.println("Failed to read source image: " + srcFile);
+            return;
+        }
+
+        BufferedImage dest = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = dest.createGraphics();
+        
+        // Nearest-neighbor rendering hints for crisp pixel art
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        g.drawImage(src, 0, 0, size, size, null);
+        g.dispose();
+
+        ImageIO.write(dest, "PNG", destFile);
+        System.out.println("Successfully resized " + srcFile + " to " + destFile + " (" + size + "x" + size + ")");
+    }
+}

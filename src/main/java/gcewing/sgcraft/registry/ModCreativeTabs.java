@@ -30,5 +30,6 @@ public class ModCreativeTabs {
                 output.accept(ModItems.SG_IRIS_UPGRADE.get());
                 output.accept(ModItems.SG_IRIS_BLADE.get());
                 output.accept(ModItems.STARGATE_PAD.get());
+                output.accept(ModItems.RF_POWER_UNIT_ITEM.get());
             }).build());
 }

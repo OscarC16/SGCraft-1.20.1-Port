@@ -37,4 +37,7 @@ public class ModBlocks {
 
     public static final net.neoforged.neoforge.registries.DeferredBlock<SGIrisBlock> STARGATE_IRIS = BLOCKS.registerBlock("stargate_iris", 
         SGIrisBlock::new, props -> props.mapColor(MapColor.COLOR_GRAY).strength(-1.0F, 3600000.0F).noOcclusion().pushReaction(PushReaction.BLOCK));
+
+    public static final net.neoforged.neoforge.registries.DeferredBlock<RFPowerBlock> RF_POWER_UNIT = BLOCKS.registerBlock("rf_power_unit", 
+        RFPowerBlock::new, props -> props.mapColor(MapColor.STONE).strength(1.5F, 10.0F).sound(SoundType.METAL).requiresCorrectToolForDrops());
 }

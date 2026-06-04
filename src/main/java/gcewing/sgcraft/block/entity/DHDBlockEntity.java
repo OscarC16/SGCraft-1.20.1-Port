@@ -25,7 +25,6 @@ public class DHDBlockEntity extends BlockEntity {
     public int energy = 0;
     
     public double energyInBuffer = 0;
-    public double maxEnergyBuffer = 2000000;
     public String enteredAddress = "";
     
     @SuppressWarnings("removal")

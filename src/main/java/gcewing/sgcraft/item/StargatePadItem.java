@@ -10,7 +10,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
@@ -25,14 +24,13 @@ public class StargatePadItem extends Item {
 
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
-        ItemStack stack = player.getItemInHand(hand);
         if (!level.isClientSide()) {
             if (player instanceof ServerPlayer serverPlayer) {
                 BlockPos playerPos = player.blockPosition();
                 SGBaseBlockEntity closestGate = null;
                 double closestDistSq = Double.MAX_VALUE;
 
-                int radius = 16;
+                int radius = 8;
                 for (int x = -radius; x <= radius; x++) {
                     for (int y = -radius; y <= radius; y++) {
                         for (int z = -radius; z <= radius; z++) {
@@ -52,8 +50,16 @@ public class StargatePadItem extends Item {
                 if (closestGate != null) {
                     SGNetwork network = SGNetwork.get(level);
                     List<String> addresses = new ArrayList<>();
-                    for (String addr : network.getStargates().keySet()) {
-                        if (!addr.equals(closestGate.homeAddress)) {
+                    net.minecraft.resources.ResourceKey<Level> localDim = level.dimension();
+                    for (java.util.Map.Entry<String, SGNetwork.StargateLocation> entry : network.getStargates().entrySet()) {
+                        String addr = entry.getKey();
+                        SGNetwork.StargateLocation loc = entry.getValue();
+                        if (addr.equals(closestGate.homeAddress)) {
+                            continue;
+                        }
+                        if (loc.dimension.equals(localDim)) {
+                            addresses.add(addr.substring(0, 7));
+                        } else {
                             addresses.add(addr);
                         }
                     }

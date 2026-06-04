@@ -26,4 +26,5 @@ public class ModItems {
     public static final DeferredItem<BlockItem> STARGATE_CHEVRON_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.STARGATE_CHEVRON);
     public static final DeferredItem<BlockItem> STARGATE_BASE_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.STARGATE_BASE);
     public static final DeferredItem<BlockItem> STARGATE_CONTROLLER_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.STARGATE_CONTROLLER);
+    public static final DeferredItem<BlockItem> RF_POWER_UNIT_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.RF_POWER_UNIT);
 }
