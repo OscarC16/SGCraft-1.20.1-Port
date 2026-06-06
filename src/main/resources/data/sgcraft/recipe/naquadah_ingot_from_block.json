@@ -1,13 +1,10 @@
 {
     "type":  "minecraft:crafting_shapeless",
     "ingredients":  [
-                        {
-                            "item":  "sgcraft:naquadah_block"
-                        }
+                        "sgcraft:naquadah_block"
                     ],
     "result":  {
                    "count":  9,
                    "id":  "sgcraft:naquadah_ingot"
                }
 }
-

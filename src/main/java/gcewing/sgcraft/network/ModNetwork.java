@@ -3,6 +3,7 @@ package gcewing.sgcraft.network;
 import com.mojang.logging.LogUtils;
 import gcewing.sgcraft.SGCraft;
 import gcewing.sgcraft.block.entity.SGBaseBlockEntity;
+import gcewing.sgcraft.block.entity.NaquadahGeneratorBlockEntity;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -32,6 +33,12 @@ public class ModNetwork {
             OpenPadPacket.STREAM_CODEC,
             ModNetwork::handleOpenPadPacket
         );
+
+        registrar.playToServer(
+            ToggleGeneratorPacket.TYPE,
+            ToggleGeneratorPacket.STREAM_CODEC,
+            ModNetwork::handleToggleGeneratorPacket
+        );
     }
 
     private static void handleOpenPadPacket(final OpenPadPacket packet, final IPayloadContext context) {
@@ -50,6 +57,20 @@ public class ModNetwork {
                     // Verificación de seguridad: El jugador debe estar razonablemente cerca del DHD/Stargate (32 bloques máx)
                     if (player.distanceToSqr(packet.pos().getX() + 0.5, packet.pos().getY() + 0.5, packet.pos().getZ() + 0.5) < 1024) {
                         st.connectOrDisconnect(packet.address(), player);
+                    }
+                }
+            }
+        });
+    }
+
+    private static void handleToggleGeneratorPacket(final ToggleGeneratorPacket packet, final IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer player) {
+                BlockEntity be = player.level().getBlockEntity(packet.pos());
+                if (be instanceof NaquadahGeneratorBlockEntity gen) {
+                    if (player.distanceToSqr(packet.pos().getX() + 0.5, packet.pos().getY() + 0.5, packet.pos().getZ() + 0.5) < 64) {
+                        gen.enabled = !gen.enabled;
+                        gen.setChanged();
                     }
                 }
             }

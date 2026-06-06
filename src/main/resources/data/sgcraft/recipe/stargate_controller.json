@@ -1,26 +1,18 @@
 {
     "type":  "minecraft:crafting_shaped",
     "pattern":  [
-                    "bbb",
-                    "OpO",
-                    "OcO"
+                    "BRB",
+                    "OCO",
+                    "PPP"
                 ],
     "key":  {
-                "b":  {
-                          "item":  "minecraft:stone_button"
-                      },
-                "O":  {
-                          "item":  "minecraft:obsidian"
-                      },
-                "p":  {
-                          "item":  "minecraft:ender_pearl"
-                      },
-                "c":  {
-                          "item":  "sgcraft:sg_controller_crystal"
-                      }
+                "B":  "minecraft:polished_blackstone_button",
+                "R":  "minecraft:redstone_block",
+                "O":  "minecraft:obsidian",
+                "C":  "sgcraft:sg_controller_crystal",
+                "P":  "minecraft:polished_deepslate"
             },
     "result":  {
                    "id":  "sgcraft:stargate_controller"
                }
 }
-

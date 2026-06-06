@@ -1,19 +1,17 @@
 {
-  "type": "minecraft:crafting_shaped",
-  "pattern": [
-    "CrC",
-    "NeN",
-    "ScS"
-  ],
-  "key": {
-    "C": { "item": "minecraft:chiseled_sandstone" },
-    "r": { "item": "minecraft:redstone" },
-    "N": { "item": "sgcraft:naquadah_ingot" },
-    "e": { "item": "minecraft:ender_eye" },
-    "S": { "item": "minecraft:smooth_sandstone" },
-    "c": { "item": "sgcraft:sg_core_crystal" }
-  },
-  "result": { "id": "sgcraft:stargate_base"
-  }
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "PEP",
+        "NCN",
+        "PPP"
+    ],
+    "key": {
+        "P": "minecraft:polished_deepslate",
+        "E": "minecraft:ender_eye",
+        "N": "sgcraft:naquadah_ingot",
+        "C": "sgcraft:sg_core_crystal"
+    },
+    "result": {
+        "id": "sgcraft:stargate_base"
+    }
 }
-

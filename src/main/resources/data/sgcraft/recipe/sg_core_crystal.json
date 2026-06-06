@@ -1,23 +1,16 @@
 {
     "type":  "minecraft:crafting_shaped",
     "pattern":  [
-                    "bbr",
-                    "rdb",
-                    "brb"
+                    "rar",
+                    "ada",
+                    "rar"
                 ],
     "key":  {
-                "b":  {
-                          "item":  "minecraft:blue_dye"
-                      },
-                "r":  {
-                          "item":  "minecraft:redstone"
-                      },
-                "d":  {
-                          "item":  "minecraft:diamond"
-                      }
+                "d":  "minecraft:diamond",
+                "a":  "minecraft:amethyst_shard",
+                "r":  "minecraft:redstone"
             },
     "result":  {
                    "id":  "sgcraft:sg_core_crystal"
                }
 }
-

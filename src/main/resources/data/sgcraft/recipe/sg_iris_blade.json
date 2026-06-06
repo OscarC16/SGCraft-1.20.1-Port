@@ -1,20 +1,16 @@
 {
     "type":  "minecraft:crafting_shaped",
     "pattern":  [
-                    " ii",
-                    "ic ",
-                    "i  "
+                    " i ",
+                    "ini",
+                    " i "
                 ],
     "key":  {
-                "i":  {
-                          "item":  "minecraft:iron_ingot"
-                      },
-                "c":  {
-                          "item":  "minecraft:charcoal"
-                      }
+                "i":  "minecraft:iron_ingot",
+                "n":  "sgcraft:naquadah_ingot"
             },
     "result":  {
+                   "count":  4,
                    "id":  "sgcraft:sg_iris_blade"
                }
 }
-

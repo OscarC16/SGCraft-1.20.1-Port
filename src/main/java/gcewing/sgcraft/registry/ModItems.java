@@ -17,6 +17,8 @@ public class ModItems {
     public static final DeferredItem<Item> SG_CHEVRON_UPGRADE = ITEMS.registerSimpleItem("sg_chevron_upgrade", props -> props.stacksTo(1));
     public static final DeferredItem<Item> SG_IRIS_UPGRADE = ITEMS.registerSimpleItem("sg_iris_upgrade", props -> props.stacksTo(1));
     public static final DeferredItem<Item> SG_IRIS_BLADE = ITEMS.registerSimpleItem("sg_iris_blade", props -> props);
+    public static final DeferredItem<Item> NAQUADAH_REACTOR_CORE = ITEMS.registerSimpleItem("reactor_core", props -> props);
+    public static final DeferredItem<Item> CHEVRON_ASSEMBLY = ITEMS.registerSimpleItem("chevron_assembly", props -> props);
     public static final DeferredItem<gcewing.sgcraft.item.StargatePadItem> STARGATE_PAD = ITEMS.registerItem("stargate_pad", props -> new gcewing.sgcraft.item.StargatePadItem(props.stacksTo(1)));
 
     public static final DeferredItem<BlockItem> NAQUADAH_BLOCK_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.NAQUADAH_BLOCK);
@@ -27,4 +29,5 @@ public class ModItems {
     public static final DeferredItem<BlockItem> STARGATE_BASE_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.STARGATE_BASE);
     public static final DeferredItem<BlockItem> STARGATE_CONTROLLER_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.STARGATE_CONTROLLER);
     public static final DeferredItem<BlockItem> RF_POWER_UNIT_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.RF_POWER_UNIT);
+    public static final DeferredItem<BlockItem> NAQUADAH_GENERATOR_ITEM = ITEMS.registerSimpleBlockItem(ModBlocks.NAQUADAH_GENERATOR);
 }

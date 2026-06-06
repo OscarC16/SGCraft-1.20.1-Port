@@ -2,19 +2,14 @@
     "type":  "minecraft:crafting_shaped",
     "pattern":  [
                     "bbb",
-                    "brb",
+                    "bpb",
                     "bbb"
                 ],
     "key":  {
-                "b":  {
-                          "item":  "sgcraft:sg_iris_blade"
-                      },
-                "r":  {
-                          "item":  "minecraft:redstone"
-                      }
+                "b":  "sgcraft:sg_iris_blade",
+                "p":  "minecraft:piston"
             },
     "result":  {
                    "id":  "sgcraft:sg_iris_upgrade"
                }
 }
-

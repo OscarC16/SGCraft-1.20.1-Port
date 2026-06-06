@@ -1,0 +1,16 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "cOc",
+        "OnO",
+        "cOc"
+    ],
+    "key": {
+        "c": "minecraft:copper_ingot",
+        "O": "minecraft:obsidian",
+        "n": "sgcraft:naquadah_ingot"
+    },
+    "result": {
+        "id": "sgcraft:reactor_core"
+    }
+}

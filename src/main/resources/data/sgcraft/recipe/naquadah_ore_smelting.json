@@ -1,0 +1,9 @@
+{
+    "type":  "minecraft:smelting",
+    "ingredient":  "sgcraft:naquadah_ore",
+    "result":  {
+                   "id":  "sgcraft:naquadah"
+               },
+    "experience":  1.0,
+    "cookingtime":  200
+}

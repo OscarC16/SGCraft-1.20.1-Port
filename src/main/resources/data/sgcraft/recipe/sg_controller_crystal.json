@@ -1,23 +1,16 @@
 {
     "type":  "minecraft:crafting_shaped",
     "pattern":  [
-                    "roo",
-                    "odr",
-                    "oor"
+                    "cac",
+                    "ada",
+                    "cac"
                 ],
     "key":  {
-                "o":  {
-                          "item":  "minecraft:orange_dye"
-                      },
-                "r":  {
-                          "item":  "minecraft:redstone"
-                      },
-                "d":  {
-                          "item":  "minecraft:diamond"
-                      }
+                "d":  "minecraft:diamond",
+                "a":  "minecraft:amethyst_shard",
+                "c":  "minecraft:copper_ingot"
             },
     "result":  {
                    "id":  "sgcraft:sg_controller_crystal"
                }
 }
-

@@ -12,7 +12,6 @@ import net.minecraft.core.Direction;
 import org.jetbrains.annotations.NotNull;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
@@ -30,7 +29,7 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 
 import java.util.List;
 
-@SuppressWarnings({"deprecation", "removal"})
+@SuppressWarnings({ "deprecation", "removal" })
 public class SGBaseBlockEntity extends BlockEntity {
 
     public enum State {
@@ -475,33 +474,27 @@ public class SGBaseBlockEntity extends BlockEntity {
         if (state == State.Idle) {
             // 1. Validate 9-symbol upgrade requirement
             if (address.length() > 7 && !hasChevronUpgrade) {
-                player.sendSystemMessage(
-                        Component.literal("Error: Se requiere mejora de Chevron para direcciones de 9 símbolos."));
                 return;
             }
 
             // 2. Find destination location
             SGNetwork.StargateLocation loc = SGNetwork.get(level).findStargate(address, level.dimension());
             if (loc == null) {
-                player.sendSystemMessage(Component.literal("Error: Dirección no válida."));
                 return;
             }
 
             // 3. Load destination level and check for Stargate
             ServerLevel destLevel = level.getServer().getLevel(loc.dimension);
             if (destLevel == null) {
-                player.sendSystemMessage(Component.literal("Error: Dimensión de destino no cargada."));
                 return;
             }
 
             if (!(destLevel.getBlockEntity(loc.pos) instanceof SGBaseBlockEntity targetBE)) {
-                player.sendSystemMessage(Component.literal("Error: No se encontró un Stargate en el destino."));
                 return;
             }
 
             // 4. Case 2: Check if destination is busy
             if (targetBE.state != State.Idle) {
-                player.sendSystemMessage(Component.literal("Error: El portal de destino está ocupado."));
                 level.playSound(null, worldPosition, ModSounds.STARGATE_ABORT.get(), SoundSource.BLOCKS, 0.5f, 1.0f);
                 return;
             }
@@ -509,8 +502,6 @@ public class SGBaseBlockEntity extends BlockEntity {
             // 5. Dimension/Symbol restrictions
             boolean isInterDimensional = !level.dimension().equals(loc.dimension);
             if (address.length() == 7 && isInterDimensional) {
-                player.sendSystemMessage(
-                        Component.literal("Error: Solo se permiten llamadas intradimensionales con 7 símbolos."));
                 return;
             }
 
@@ -520,7 +511,6 @@ public class SGBaseBlockEntity extends BlockEntity {
                 openingCost *= INTER_DIMENSION_MULTIPLIER;
             }
             if (this.energy < openingCost) {
-                player.sendSystemMessage(Component.literal("Error: Energía insuficiente para iniciar la conexión."));
                 level.playSound(null, worldPosition, ModSounds.STARGATE_ABORT.get(), SoundSource.BLOCKS, 0.5f, 1.0f);
                 return;
             }
@@ -872,9 +862,9 @@ public class SGBaseBlockEntity extends BlockEntity {
         output.putFloat("irisPhase", irisPhase);
         output.putString("state", state.name());
         output.putDouble("ringAngle", ringAngle);
-        
+
         inventory.serialize(output.child("inventory"));
-        
+
         output.putInt("numEngagedChevrons", numEngagedChevrons);
         output.putString("dialledAddress", dialledAddress);
         output.putInt("dialingStep", dialingStep);
@@ -882,12 +872,12 @@ public class SGBaseBlockEntity extends BlockEntity {
         output.putBoolean("isRingRotating", isRingRotating);
         output.putBoolean("isChevronEngaging", isChevronEngaging);
         output.putDouble("targetRingAngle", targetRingAngle);
-        
+
         if (targetPos != null)
             output.putLong("targetPos", targetPos.asLong());
         if (targetDimension != null)
             output.putString("targetDim", targetDimension.identifier().toString());
-            
+
         output.putBoolean("isIncoming", isIncoming);
         output.putString("homeAddress", homeAddress);
     }
@@ -901,42 +891,46 @@ public class SGBaseBlockEntity extends BlockEntity {
         energy = input.getIntOr("energy", 0);
         hasChevronUpgrade = input.getBooleanOr("hasChevronUpgrade", false);
         hasIrisUpgrade = input.getBooleanOr("hasIrisUpgrade", false);
-        
+
         String isStr = input.getStringOr("irisState", "");
-        if (!isStr.isEmpty()) irisState = IrisState.valueOf(isStr);
-        
+        if (!isStr.isEmpty())
+            irisState = IrisState.valueOf(isStr);
+
         irisPhase = input.getFloatOr("irisPhase", 1.0f);
-        
+
         String stStr = input.getStringOr("state", "");
-        if (!stStr.isEmpty()) state = State.valueOf(stStr);
-        
+        if (!stStr.isEmpty())
+            state = State.valueOf(stStr);
+
         double newRingAngle = input.getDoubleOr("ringAngle", 0.0);
         if (level == null || !level.isClientSide() || state != State.Dialing) {
             ringAngle = newRingAngle;
         }
-        
+
         inventory.deserialize(input.childOrEmpty("inventory"));
-        
+
         numEngagedChevrons = input.getIntOr("numEngagedChevrons", 0);
         dialledAddress = input.getStringOr("dialledAddress", "");
         dialingStep = input.getIntOr("dialingStep", -1);
-        
+
         if (level == null || !level.isClientSide() || state != State.Dialing) {
             dialTicks = input.getIntOr("dialTicks", 0);
         }
-        
+
         isRingRotating = input.getBooleanOr("isRingRotating", false);
         isChevronEngaging = input.getBooleanOr("isChevronEngaging", false);
         targetRingAngle = input.getDoubleOr("targetRingAngle", 0.0);
-        
+
         long tPos = input.getLongOr("targetPos", -1L);
-        if (tPos != -1L) targetPos = net.minecraft.core.BlockPos.of(tPos);
-        
+        if (tPos != -1L)
+            targetPos = net.minecraft.core.BlockPos.of(tPos);
+
         String tDim = input.getStringOr("targetDim", "");
         if (!tDim.isEmpty()) {
-            targetDimension = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, net.minecraft.resources.Identifier.parse(tDim));
+            targetDimension = net.minecraft.resources.ResourceKey.create(
+                    net.minecraft.core.registries.Registries.DIMENSION, net.minecraft.resources.Identifier.parse(tDim));
         }
-        
+
         isIncoming = input.getBooleanOr("isIncoming", false);
         homeAddress = input.getStringOr("homeAddress", "");
         updateUpgrades();
@@ -1039,15 +1033,16 @@ public class SGBaseBlockEntity extends BlockEntity {
         tag.putBoolean("isRingRotating", isRingRotating);
         tag.putBoolean("isChevronEngaging", isChevronEngaging);
         tag.putDouble("targetRingAngle", targetRingAngle);
-        
+
         if (targetPos != null)
             tag.putLong("targetPos", targetPos.asLong());
         if (targetDimension != null)
             tag.putString("targetDim", targetDimension.identifier().toString());
-            
+
         tag.putBoolean("isIncoming", isIncoming);
         tag.putString("homeAddress", homeAddress);
-        net.minecraft.world.level.storage.TagValueOutput output = net.minecraft.world.level.storage.TagValueOutput.createWithContext(net.minecraft.util.ProblemReporter.DISCARDING, registries);
+        net.minecraft.world.level.storage.TagValueOutput output = net.minecraft.world.level.storage.TagValueOutput
+                .createWithContext(net.minecraft.util.ProblemReporter.DISCARDING, registries);
         inventory.serialize(output);
         tag.put("inventory", output.buildResult());
         return tag;

@@ -7,6 +7,8 @@
     "sgcraft:stargate_ring",
     "sgcraft:stargate_chevron",
     "sgcraft:stargate_base",
-    "sgcraft:stargate_controller"
+    "sgcraft:stargate_controller",
+    "sgcraft:rf_power_unit",
+    "sgcraft:naquadah_generator"
   ]
 }

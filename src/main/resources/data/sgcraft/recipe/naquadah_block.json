@@ -6,12 +6,9 @@
                     "NNN"
                 ],
     "key":  {
-                "N":  {
-                          "item":  "sgcraft:naquadah_ingot"
-                      }
+                "N":  "sgcraft:naquadah_ingot"
             },
     "result":  {
                    "id":  "sgcraft:naquadah_block"
                }
 }
-

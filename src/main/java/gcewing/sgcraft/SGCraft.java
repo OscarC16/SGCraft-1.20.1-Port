@@ -15,7 +15,7 @@ public class SGCraft {
     private static final Logger LOGGER = LogUtils.getLogger();
 
     public SGCraft(IEventBus modEventBus) {
-        LOGGER.info("Initializing SGCraft v2.2.2 for Minecraft 1.21.11");
+        LOGGER.info("Initializing SGCraft v2.2.3 for Minecraft 1.21.11");
         gcewing.sgcraft.registry.ModEvents.init(modEventBus);
 
         ModBlocks.BLOCKS.register(modEventBus);

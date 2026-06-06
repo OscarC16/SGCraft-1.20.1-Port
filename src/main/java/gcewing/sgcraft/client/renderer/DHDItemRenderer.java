@@ -27,7 +27,8 @@ public class DHDItemRenderer implements NoDataSpecialModelRenderer {
 
     @Override
     public void getExtents(Consumer<Vector3fc> consumer) {
-        // No-op, typical for custom 3D models with block entity delegates.
+        consumer.accept(new org.joml.Vector3f(0f, 0f, 0f));
+        consumer.accept(new org.joml.Vector3f(1f, 1f, 1f));
     }
 
     public static final MapCodec<Unbaked> CODEC = MapCodec.unit(new Unbaked());

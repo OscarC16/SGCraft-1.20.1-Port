@@ -32,5 +32,6 @@ public class ModClientEvents {
     public static void registerScreens(net.neoforged.neoforge.client.event.RegisterMenuScreensEvent event) {
         event.register(gcewing.sgcraft.registry.ModMenuTypes.SG_BASE_MENU.get(), gcewing.sgcraft.client.gui.SGBaseScreen::new);
         event.register(gcewing.sgcraft.registry.ModMenuTypes.DHD_FUEL_MENU.get(), gcewing.sgcraft.client.gui.DHDFuelScreen::new);
+        event.register(gcewing.sgcraft.registry.ModMenuTypes.NAQUADAH_GENERATOR_MENU.get(), gcewing.sgcraft.client.gui.NaquadahGeneratorScreen::new);
     }
 }

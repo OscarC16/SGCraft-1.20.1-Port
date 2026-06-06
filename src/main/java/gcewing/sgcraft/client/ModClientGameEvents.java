@@ -25,6 +25,12 @@ public class ModClientGameEvents {
             return;
         }
 
+        // Hide selection outline for Naquadah Generator
+        if (state.getBlock() instanceof gcewing.sgcraft.block.NaquadahGeneratorBlock) {
+            event.setCanceled(true);
+            return;
+        }
+
         // Hide selection outline for Stargate components (Base, Ring, Chevron) ONLY when merged
         if (state.getBlock() instanceof SGBaseBlock || state.getBlock() instanceof SGRingBlock) {
             if (state.hasProperty(SGBlockStates.MERGED) && state.getValue(SGBlockStates.MERGED)) {

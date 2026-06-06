@@ -1,0 +1,18 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "IhI",
+        "CcC",
+        "IrI"
+    ],
+    "key": {
+        "I": "minecraft:iron_ingot",
+        "h": "sgcraft:sg_controller_crystal",
+        "C": "minecraft:copper_block",
+        "c": "sgcraft:reactor_core",
+        "r": "minecraft:redstone_block"
+    },
+    "result": {
+        "id": "sgcraft:naquadah_generator"
+    }
+}

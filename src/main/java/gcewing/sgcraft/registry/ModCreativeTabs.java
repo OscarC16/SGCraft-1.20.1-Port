@@ -29,7 +29,10 @@ public class ModCreativeTabs {
                 output.accept(ModItems.SG_CHEVRON_UPGRADE.get());
                 output.accept(ModItems.SG_IRIS_UPGRADE.get());
                 output.accept(ModItems.SG_IRIS_BLADE.get());
+                output.accept(ModItems.NAQUADAH_REACTOR_CORE.get());
+                output.accept(ModItems.CHEVRON_ASSEMBLY.get());
                 output.accept(ModItems.STARGATE_PAD.get());
                 output.accept(ModItems.RF_POWER_UNIT_ITEM.get());
+                output.accept(ModItems.NAQUADAH_GENERATOR_ITEM.get());
             }).build());
 }
