@@ -100,4 +100,26 @@ public class SGRingBlock extends BaseEntityBlock {
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(SGBlockStates.MERGED, SGBlockStates.LIT);
     }
+
+
+
+    @Override
+    public int getLightBlock(BlockState state) {
+        return 0;
+    }
+
+    @Override
+    public boolean useShapeForLightOcclusion(BlockState state) {
+        return false;
+    }
+
+    @Override
+    protected boolean propagatesSkylightDown(BlockState state) {
+        return true;
+    }
+
+    @Override
+    public float getShadeBrightness(BlockState state, net.minecraft.world.level.BlockGetter level, BlockPos pos) {
+        return 1.0F;
+    }
 }

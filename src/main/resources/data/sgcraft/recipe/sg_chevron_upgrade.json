@@ -1,14 +1,11 @@
 {
     "type":  "minecraft:crafting_shaped",
     "pattern":  [
-                    " p ",
-                    "chc",
-                    " p "
+                    "chc"
                 ],
     "key":  {
                 "c":  "sgcraft:chevron_assembly",
-                "p":  "minecraft:ender_pearl",
-                "h":  "sgcraft:sg_controller_crystal"
+                "h":  "minecraft:ender_eye"
             },
     "result":  {
                    "id":  "sgcraft:sg_chevron_upgrade"

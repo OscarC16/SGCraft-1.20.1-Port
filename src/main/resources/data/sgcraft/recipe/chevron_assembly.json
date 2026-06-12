@@ -6,9 +6,9 @@
         " I "
     ],
     "key": {
-        "N": "sgcraft:naquadah_ingot",
+        "N": "minecraft:ender_pearl",
         "G": "minecraft:glowstone_dust",
-        "I": "minecraft:iron_ingot"
+        "I": "sgcraft:naquadah_ingot"
     },
     "result": {
         "id": "sgcraft:chevron_assembly"

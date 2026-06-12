@@ -26,6 +26,7 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
     private static final Identifier PUDDLE_TEXTURE = Identifier.fromNamespaceAndPath(SGCraft.MODID, "textures/tileentity/eventhorizon.png");
     private static final Identifier IRIS_TEXTURE = Identifier.fromNamespaceAndPath(SGCraft.MODID, "textures/tileentity/iris.png");
     private static final int NUM_IRIS_BLADES = 12;
+    private static final net.minecraft.util.RandomSource RANDOM_SOURCE = net.minecraft.util.RandomSource.create();
 
 
     static final int NUM_RING_SEGMENTS = 32;
@@ -67,8 +68,6 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
         }
     }
 
-    private double u0, v0;
-
     public SGBaseBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
     }
 
@@ -82,6 +81,11 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
         state.te = te;
         state.partialTicks = partialTicks;
         net.minecraft.client.renderer.blockentity.BlockEntityRenderer.super.extractRenderState(te, state, partialTicks, pos, overlay);
+        
+        // Extract light from 2 blocks above the base (open ring area) to ensure the ring is properly lit
+        if (te.getLevel() != null) {
+            state.lightCoords = net.minecraft.client.renderer.LevelRenderer.getLightColor(te.getLevel(), te.getBlockPos().above(2));
+        }
     }
 
     @Override
@@ -220,19 +224,12 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
         float t = net.minecraft.util.Mth.lerp(partialTicks, te.prevIrisPhase, te.irisPhase);
         double aperture = t * t;
         
-        // Save atlas UVs and reset for standalone texture
-        double oldU0 = u0, oldV0 = v0;
-        u0 = 0; v0 = 0;
-        
         final double finalAperture = aperture;
         ordered.submitCustomGeometry(poseStack, RenderTypes.entityCutout(IRIS_TEXTURE), (pose, vc) -> {
             for (int i = 0; i < NUM_IRIS_BLADES; i++) {
                 renderIrisBlade(vc, pose, finalAperture, light, i, NUM_IRIS_BLADES);
             }
         });
-        
-        // Restore atlas UVs
-        u0 = oldU0; v0 = oldV0;
     }
 
     private void renderIrisBlade(VertexConsumer vc, PoseStack.Pose pose, double aperture, int light, int i, int n) {
@@ -260,29 +257,35 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
         Matrix3f normal = pose.normal();
 
         // Front face
-        vertex(vc, matrixPose, normal, light, 0, 0, 1, 255, 255, 255, p1x, p1y, z1, 0, 0);
-        vertex(vc, matrixPose, normal, light, 0, 0, 1, 255, 255, 255, p2x, p2y, z0, 0, 25);
-        vertex(vc, matrixPose, normal, light, 0, 0, 1, 255, 255, 255, p3x, p3y, z0, 0, 0);
-        vertex(vc, matrixPose, normal, light, 0, 0, 1, 255, 255, 255, p4x, p4y, z0, 0, 25);
+        vertex(vc, matrixPose, normal, light, 0.0, 0.0, 0, 0, 1, 255, 255, 255, p1x, p1y, z1, 0, 0);
+        vertex(vc, matrixPose, normal, light, 0.0, 0.0, 0, 0, 1, 255, 255, 255, p2x, p2y, z0, 0, 25);
+        vertex(vc, matrixPose, normal, light, 0.0, 0.0, 0, 0, 1, 255, 255, 255, p3x, p3y, z0, 0, 0);
+        vertex(vc, matrixPose, normal, light, 0.0, 0.0, 0, 0, 1, 255, 255, 255, p4x, p4y, z0, 0, 25);
 
         // Back face
-        vertex(vc, matrixPose, normal, light, 0, 0, -1, 255, 255, 255, p1x, p1y, -z1, 0, 0);
-        vertex(vc, matrixPose, normal, light, 0, 0, -1, 255, 255, 255, p4x, p4y, -z0, 0, 25);
-        vertex(vc, matrixPose, normal, light, 0, 0, -1, 255, 255, 255, p3x, p3y, -z0, 0, 0);
-        vertex(vc, matrixPose, normal, light, 0, 0, -1, 255, 255, 255, p2x, p2y, -z0, 0, 25);
+        vertex(vc, matrixPose, normal, light, 0.0, 0.0, 0, 0, -1, 255, 255, 255, p1x, p1y, -z1, 0, 0);
+        vertex(vc, matrixPose, normal, light, 0.0, 0.0, 0, 0, -1, 255, 255, 255, p4x, p4y, -z0, 0, 25);
+        vertex(vc, matrixPose, normal, light, 0.0, 0.0, 0, 0, -1, 255, 255, 255, p3x, p3y, -z0, 0, 0);
+        vertex(vc, matrixPose, normal, light, 0.0, 0.0, 0, 0, -1, 255, 255, 255, p2x, p2y, -z0, 0, 25);
+    }
+
+    private static double getTileU0(int index) {
+        return (index % TEXTURE_TILES_WIDE) * (TEXTURE_SCALE_U * 16);
+    }
+
+    private static double getTileV0(int index) {
+        return (index / TEXTURE_TILES_WIDE) * (TEXTURE_SCALE_V * 16);
     }
 
     private void renderRing(VertexConsumer vc, Matrix4f pose, Matrix3f normalMat, int light, double r1, double r2, boolean isOuter, double dz) {
         double z = RING_DEPTH / 2 + dz;
 
-        // Sides and Back use the same tile
-        selectTile(RING_TEXTURE_INDEX);
-        double sideU0 = u0, sideV0 = v0;
+        double sideU0 = getTileU0(RING_TEXTURE_INDEX);
+        double sideV0 = getTileV0(RING_TEXTURE_INDEX);
 
-        // Pre-cache front face tile
         int frontTile = isOuter ? RING_FACE_TEXTURE_INDEX : RING_SYMBOL_TEXTURE_INDEX;
-        selectTile(frontTile);
-        double frontU0 = u0, frontV0 = v0;
+        double frontU0 = getTileU0(frontTile);
+        double frontV0 = getTileV0(frontTile);
 
         double symWidth = 512.0 / NUM_RING_SEGMENTS;
         double symLen = 512.0;
@@ -291,18 +294,15 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
             double s1 = SIN[i], c1 = COS[i];
             double s2 = SIN[i+1], c2 = COS[i+1];
 
-            // Sides and Back
-            u0 = sideU0; v0 = sideV0;
-
             // Outer surface (if outer ring) or Inner surface (if inner ring)
             if (isOuter) {
-                quad(vc, pose, normalMat, light, (float)c1, (float)s1, 0,
+                quad(vc, pose, normalMat, light, sideU0, sideV0, (float)c1, (float)s1, 0,
                     r2 * c1, r2 * s1, z, 0, 0,
                     r2 * c1, r2 * s1, -z, 0, 16,
                     r2 * c2, r2 * s2, -z, 16, 16,
                     r2 * c2, r2 * s2, z, 16, 0);
             } else {
-                quad(vc, pose, normalMat, light, (float)-c1, (float)-s1, 0,
+                quad(vc, pose, normalMat, light, sideU0, sideV0, (float)-c1, (float)-s1, 0,
                     r1 * c1, r1 * s1, -z, 0, 0,
                     r1 * c1, r1 * s1, z, 0, 16,
                     r1 * c2, r1 * s2, z, 16, 16,
@@ -310,23 +310,22 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
             }
 
             // Back face
-            quad(vc, pose, normalMat, light, 0, 0, -1,
+            quad(vc, pose, normalMat, light, sideU0, sideV0, 0, 0, -1,
                 r1 * c1, r1 * s1, -z, 0, 16,
                 r1 * c2, r1 * s2, -z, 16, 16,
                 r2 * c2, r2 * s2, -z, 16, 0,
                 r2 * c1, r2 * s1, -z, 0, 0);
 
             // Front face
-            u0 = frontU0; v0 = frontV0;
             if (isOuter) {
-                quad(vc, pose, normalMat, light, 0, 0, 1,
+                quad(vc, pose, normalMat, light, frontU0, frontV0, 0, 0, 1,
                     r1 * c1, r1 * s1, z, 16, 16,
                     r2 * c1, r2 * s1, z, 16, 0,
                     r2 * c2, r2 * s2, z, 0, 0,
                     r1 * c2, r1 * s2, z, 0, 16);
             } else {
                 double u = symLen - (i + 1) * symWidth;
-                quad(vc, pose, normalMat, light, 0, 0, 1,
+                quad(vc, pose, normalMat, light, frontU0, frontV0, 0, 0, 1,
                     r1 * c1, r1 * s1, z, u + symWidth, 16,
                     r2 * c1, r2 * s1, z, u + symWidth, 0,
                     r2 * c2, r2 * s2, z, u, 0,
@@ -368,110 +367,107 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
         double x1 = r1, y1 = CHEVRON_WIDTH / 4;
         double x2 = r2, y2 = CHEVRON_WIDTH / 2;
 
-        selectTile(CHEVRON_TEXTURE_INDEX);
-        selectTile(CHEVRON_TEXTURE_INDEX);
+        double chevU0 = getTileU0(CHEVRON_TEXTURE_INDEX);
+        double chevV0 = getTileV0(CHEVRON_TEXTURE_INDEX);
+
         // Face 1 (right arm)
-        quad(vc, pose, normalMat, light, 0, 0, 1,
+        quad(vc, pose, normalMat, light, chevU0, chevV0, 0, 0, 1,
             x2, y2, z1, 0, 2,
             x1, y1, z1, 0, 16,
             x1 + w1, y1 - w1, z1, 4, 12,
             x2, y2 - w2, z1, 4, 2);
         // Side 1
-        quad(vc, pose, normalMat, light, 0, 1, 0,
+        quad(vc, pose, normalMat, light, chevU0, chevV0, 0, 1, 0,
             x2, y2, z1, 0, 0,
             x2, y2, z2, 0, 4,
             x1, y1, z2, 16, 4,
             x1, y1, z1, 16, 0);
         // End 1
-        quad(vc, pose, normalMat, light, 1, 0, 0,
+        quad(vc, pose, normalMat, light, chevU0, chevV0, 1, 0, 0,
             x2, y2, z1, 16, 0,
             x2, y2 - w2, z1, 12, 0,
             x2, y2 - w2, z2, 12, 4,
             x2, y2, z2, 16, 4);
         // Face 2 (inner arm)
-        quad(vc, pose, normalMat, light, 0, 0, 1,
+        quad(vc, pose, normalMat, light, chevU0, chevV0, 0, 0, 1,
             x1 + w1, y1 - w1, z1, 4, 12,
             x1, y1, z1, 0, 16,
             x1, -y1, z1, 16, 16,
             x1 + w1, -y1 + w1, z1, 12, 12);
         // Side 2 (inner edge)
-        quad(vc, pose, normalMat, light, -1, 0, 0,
+        quad(vc, pose, normalMat, light, chevU0, chevV0, -1, 0, 0,
             x1, y1, z1, 0, 0,
             x1, y1, z2, 0, 4,
             x1, -y1, z2, 16, 4,
             x1, -y1, z1, 16, 0);
         // Face 3 (left arm)
-        quad(vc, pose, normalMat, light, 0, 0, 1,
+        quad(vc, pose, normalMat, light, chevU0, chevV0, 0, 0, 1,
             x2, -y2 + w2, z1, 12, 0,
             x1 + w1, -y1 + w1, z1, 12, 12,
             x1, -y1, z1, 16, 16,
             x2, -y2, z1, 16, 0);
         // Side 3
-        quad(vc, pose, normalMat, light, 0, -1, 0,
+        quad(vc, pose, normalMat, light, chevU0, chevV0, 0, -1, 0,
             x1, -y1, z1, 0, 0,
             x1, -y1, z2, 0, 4,
             x2, -y2, z2, 16, 4,
             x2, -y2, z1, 16, 0);
         // End 3
-        quad(vc, pose, normalMat, light, 1, 0, 0,
+        quad(vc, pose, normalMat, light, chevU0, chevV0, 1, 0, 0,
             x2, -y2, z1, 0, 0,
             x2, -y2, z2, 0, 4,
             x2, -y2 + w2, z2, 4, 4,
             x2, -y2 + w2, z1, 4, 0);
         // Back face
-        quad(vc, pose, normalMat, light, 0, 0, -1,
+        quad(vc, pose, normalMat, light, chevU0, chevV0, 0, 0, -1,
             x2, -y2, z2, 0, 0,
             x1, -y1, z2, 0, 16,
             x1, y1, z2, 16, 16,
             x2, y2, z2, 16, 0);
 
-        selectTile(CHEVRON_LIT_TEXTURE_INDEX);
+        double litU0 = getTileU0(CHEVRON_LIT_TEXTURE_INDEX);
+        double litV0 = getTileV0(CHEVRON_LIT_TEXTURE_INDEX);
         int r = (int) (100 + engageAmount * 155);
         int g = (int) (70 + engageAmount * 130);
         int b = (int) (50 + engageAmount * 100);
         int litLevel = engageAmount > 0.5f ? 0xF000F0 : light;
         
         // Front face lit center (Face 4)
-        quadColor(vc, pose, normalMat, litLevel, 0, 0, 1, r, g, b,
+        quadColor(vc, pose, normalMat, litLevel, litU0, litV0, 0, 0, 1, r, g, b,
             x2, y2 - w2, z1 + 0.001, 0, 4,
             x1 + w1, y1 - w1, z1 + 0.001, 4, 16,
             x1 + w1, -y1 + w1, z1 + 0.001, 12, 16,
             x2, -y2 + w2, z1 + 0.001, 16, 4);
 
         // Side face lit center (End 4)
-        quadColor(vc, pose, normalMat, litLevel, 1, 0, 0, r, g, b,
+        quadColor(vc, pose, normalMat, litLevel, litU0, litV0, 1, 0, 0, r, g, b,
             x2, y2 - w2, z2, 0, 0,
             x2, y2 - w2, z1, 0, 4,
             x2, -y2 + w2, z1, 16, 4,
             x2, -y2 + w2, z2, 16, 0);
     }
 
-    private void selectTile(int index) {
-        u0 = (index % TEXTURE_TILES_WIDE) * (TEXTURE_SCALE_U * 16);
-        v0 = (index / TEXTURE_TILES_WIDE) * (TEXTURE_SCALE_V * 16);
-    }
-
-    private void quad(VertexConsumer vc, Matrix4f pose, Matrix3f normalMat, int light, float nx, float ny, float nz,
+    private void quad(VertexConsumer vc, Matrix4f pose, Matrix3f normalMat, int light, double u0, double v0, float nx, float ny, float nz,
                       double x0, double y0, double z0, double u0v, double v0v,
                       double x1, double y1, double z1, double u1v, double v1v,
                       double x2, double y2, double z2, double u2v, double v2v,
                       double x3, double y3, double z3, double u3v, double v3v) {
-        quadColor(vc, pose, normalMat, light, nx, ny, nz, 255, 255, 255,
+        quadColor(vc, pose, normalMat, light, u0, v0, nx, ny, nz, 255, 255, 255,
             x0, y0, z0, u0v, v0v, x1, y1, z1, u1v, v1v, x2, y2, z2, u2v, v2v, x3, y3, z3, u3v, v3v);
     }
 
-    private void quadColor(VertexConsumer vc, Matrix4f pose, Matrix3f normalMat, int light, float nx, float ny, float nz, int r, int g, int b,
+    private void quadColor(VertexConsumer vc, Matrix4f pose, Matrix3f normalMat, int light, double u0, double v0, float nx, float ny, float nz, int r, int g, int b,
                            double x0, double y0, double z0, double u0v, double v0v,
                            double x1, double y1, double z1, double u1v, double v1v,
                            double x2, double y2, double z2, double u2v, double v2v,
                            double x3, double y3, double z3, double u3v, double v3v) {
-        vertex(vc, pose, normalMat, light, nx, ny, nz, r, g, b, x0, y0, z0, u0v, v0v);
-        vertex(vc, pose, normalMat, light, nx, ny, nz, r, g, b, x1, y1, z1, u1v, v1v);
-        vertex(vc, pose, normalMat, light, nx, ny, nz, r, g, b, x2, y2, z2, u2v, v2v);
-        vertex(vc, pose, normalMat, light, nx, ny, nz, r, g, b, x3, y3, z3, u3v, v3v);
+        vertex(vc, pose, normalMat, light, u0, v0, nx, ny, nz, r, g, b, x0, y0, z0, u0v, v0v);
+        vertex(vc, pose, normalMat, light, u0, v0, nx, ny, nz, r, g, b, x1, y1, z1, u1v, v1v);
+        vertex(vc, pose, normalMat, light, u0, v0, nx, ny, nz, r, g, b, x2, y2, z2, u2v, v2v);
+        vertex(vc, pose, normalMat, light, u0, v0, nx, ny, nz, r, g, b, x3, y3, z3, u3v, v3v);
     }
 
-    private void vertex(VertexConsumer vc, Matrix4f pose, Matrix3f normalMat, int light, float nx, float ny, float nz, int r, int g, int b, double x, double y, double z, double u, double v) {
+    private void vertex(VertexConsumer vc, Matrix4f pose, Matrix3f normalMat, int light, double u0, double v0, float nx, float ny, float nz, int r, int g, int b, double x, double y, double z, double u, double v) {
         float fu = (float) (u0 + u * TEXTURE_SCALE_U);
         float fv = (float) (v0 + v * TEXTURE_SCALE_V);
         
@@ -492,6 +488,10 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
     }
 
     private void renderCamouflage(SGBaseBlockEntity te, PoseStack poseStack, net.minecraft.client.renderer.OrderedSubmitNodeCollector ordered, int light, int overlay, Direction facing) {
+        if (te.getLevel() == null) return;
+
+        net.minecraft.client.renderer.block.BlockRenderDispatcher blockRenderer = net.minecraft.client.Minecraft.getInstance().getBlockRenderer();
+
         for (int i = 0; i < 5; i++) {
             net.minecraft.world.item.ItemStack stack = te.inventory.getStackInSlot(i);
             if (stack.isEmpty() || !(stack.getItem() instanceof net.minecraft.world.item.BlockItem blockItem)) continue;
@@ -512,44 +512,36 @@ public class SGBaseBlockEntityRenderer implements BlockEntityRenderer<SGBaseBloc
             BlockState state = blockItem.getBlock().defaultBlockState();
             net.minecraft.core.BlockPos camoPos = te.getBlockPos().offset(idx, 0, idz);
 
-            if (te.getLevel() != null) {
-                net.minecraft.client.renderer.block.BlockRenderDispatcher blockRenderer = net.minecraft.client.Minecraft.getInstance().getBlockRenderer();
+            net.minecraft.client.renderer.block.model.BlockStateModel model = blockRenderer.getBlockModel(state);
+            
+            RANDOM_SOURCE.setSeed(state.getSeed(camoPos));
+            java.util.List<net.minecraft.client.renderer.block.model.BlockModelPart> parts = model.collectParts(
+                te.getLevel(), camoPos, state, RANDOM_SOURCE
+            );
+            net.minecraft.client.renderer.chunk.ChunkSectionLayer layer = parts.isEmpty()
+                ? net.minecraft.client.renderer.chunk.ChunkSectionLayer.SOLID
+                : parts.get(0).getRenderType(state);
+            net.minecraft.client.renderer.rendertype.RenderType rt = net.neoforged.neoforge.client.RenderTypeHelper.getEntityRenderType(layer);
+
+            ordered.submitCustomGeometry(poseStack, rt, (pose, vc) -> {
+                com.mojang.blaze3d.vertex.PoseStack callbackStack = new com.mojang.blaze3d.vertex.PoseStack();
+                callbackStack.last().set(pose);
                 
-                net.minecraft.client.renderer.block.model.BlockStateModel model = blockRenderer.getBlockModel(state);
-                java.util.List<net.minecraft.client.renderer.block.model.BlockModelPart> camoParts = model.collectParts(
-                    te.getLevel(), camoPos, state, net.minecraft.util.RandomSource.create(state.getSeed(camoPos))
+                blockRenderer.getModelRenderer().tesselateBlock(
+                    te.getLevel(),
+                    parts,
+                    state,
+                    camoPos,
+                    callbackStack,
+                    type -> vc,
+                    true, // checkSides = true
+                    overlay
                 );
-                net.minecraft.client.renderer.chunk.ChunkSectionLayer layer = camoParts.isEmpty()
-                    ? net.minecraft.client.renderer.chunk.ChunkSectionLayer.SOLID
-                    : camoParts.get(0).getRenderType(state);
-                net.minecraft.client.renderer.rendertype.RenderType rt = net.neoforged.neoforge.client.RenderTypeHelper.getEntityRenderType(layer);
-                
-                // Render the block natively using submitCustomGeometry and ModelBlockRenderer.tesselateBlock with checkSides = false to ensure perfect lighting and shadows!
-                ordered.submitCustomGeometry(poseStack, rt, (pose, vc) -> {
-                    com.mojang.blaze3d.vertex.PoseStack callbackStack = new com.mojang.blaze3d.vertex.PoseStack();
-                    callbackStack.last().set(pose);
-                    
-                    java.util.List<net.minecraft.client.renderer.block.model.BlockModelPart> parts = model.collectParts(
-                        te.getLevel(), camoPos, state, net.minecraft.util.RandomSource.create(state.getSeed(camoPos))
-                    );
-                    
-                    blockRenderer.getModelRenderer().tesselateBlock(
-                        te.getLevel(),
-                        parts,
-                        state,
-                        camoPos,
-                        callbackStack,
-                        type -> vc,
-                        false, // checkSides = false to bypass ambient occlusion culling inside solid Stargate blocks
-                        overlay
-                    );
-                });
-            } else {
-                ordered.submitBlock(poseStack, state, light, overlay, 0);
-            }
+            });
 
             poseStack.popPose();
         }
     }
+
 }
 

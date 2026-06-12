@@ -62,5 +62,14 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = "UTF-8"
 }
 
-
-
+tasks.configureEach { task ->
+    if (task.name == 'createMinecraftArtifacts') {
+        task.onlyIf {
+            def artifactsDir = file('build/moddev/artifacts')
+            if (!artifactsDir.exists()) return true
+            def files = artifactsDir.listFiles()
+            if (files == null) return true
+            return !files.any { it.name.contains('client-extra-aka-minecraft-resources') && it.name.endsWith('.jar') }
+        }
+    }
+}

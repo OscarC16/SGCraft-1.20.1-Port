@@ -237,7 +237,25 @@ public class SGBaseBlock extends BaseEntityBlock {
         }
     }
 
-    public boolean propagatesSkylightDown(BlockState state, net.minecraft.world.level.BlockGetter level, BlockPos pos) {
+
+
+    @Override
+    public int getLightBlock(BlockState state) {
+        return 0;
+    }
+
+    @Override
+    public boolean useShapeForLightOcclusion(BlockState state) {
+        return false;
+    }
+
+    @Override
+    protected boolean propagatesSkylightDown(BlockState state) {
         return true;
+    }
+
+    @Override
+    public float getShadeBrightness(BlockState state, net.minecraft.world.level.BlockGetter level, BlockPos pos) {
+        return 1.0F;
     }
 }
